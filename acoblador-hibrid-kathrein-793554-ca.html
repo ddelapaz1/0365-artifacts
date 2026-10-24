@@ -334,39 +334,103 @@ const lid = part('lid', {
   g.rotateX(-Math.PI / 2);
   add(lid, g, MAT.lid, [0, 40.9, 0]);
 
-  // Pegatina con el esquema del acoplador (arriba = detrás)
-  const sticker = canvasTex(600, 240, (x, w, h) => {
-    x.fillStyle = '#f4f4f1'; x.fillRect(0, 0, w, h);
-    x.strokeStyle = '#222'; x.lineWidth = 4; x.strokeRect(6, 6, w - 12, h - 12);
-    x.lineWidth = 6; x.fillStyle = '#222';
-    const line = (y, from, to) => {
-      x.beginPath(); x.moveTo(110, y); x.lineTo(490, y); x.stroke();
-      const ax = (from + to) / 2, d = Math.sign(to - from);
-      x.beginPath(); x.moveTo(ax + d * 22, y); x.lineTo(ax - d * 10, y - 14); x.lineTo(ax - d * 10, y + 14); x.closePath(); x.fill();
+  // Pegatina con el esquema del acoplador, calcada de la foto (canvas: derecha = +X, abajo = delante).
+  // Los números están impresos girados 180° (se leen desde detrás), como en la pieza real.
+  const sticker = canvasTex(1200, 447, (x, w, h) => {
+    const k = w / 940;
+    x.scale(k, k); x.translate(-280, 20);           // coordenadas del dibujo: x 280–1220, y −20–330
+    x.fillStyle = '#ecece8';
+    x.beginPath(); x.roundRect(284, -16, 932, 342, 26); x.fill();
+    x.strokeStyle = '#1d1d1d'; x.fillStyle = '#1d1d1d'; x.lineWidth = 4.5; x.lineJoin = 'miter';
+    const L = (...pts) => { x.beginPath(); pts.forEach(([px, py], i) => (i ? x.lineTo(px, py) : x.moveTo(px, py))); x.stroke(); };
+    const head = (px, py, ang, len = 34, wd = 9) => {
+      x.save(); x.translate(px, py); x.rotate(ang);
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(-len, -wd); x.lineTo(-len, wd); x.closePath(); x.fill(); x.restore();
     };
-    line(72, 490, 110);   // línea trasera: 2 ← (acoplado) … 4
-    line(168, 490, 110);  // línea delantera: 1 → 3
-    x.setLineDash([10, 10]); x.lineWidth = 3;
-    x.beginPath(); x.moveTo(200, 100); x.lineTo(400, 100); x.moveTo(200, 140); x.lineTo(400, 140); x.stroke();
-    x.setLineDash([]);
-    x.font = 'bold 46px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('4', 60, 72); x.fillText('2', 540, 72); x.fillText('3', 60, 168); x.fillText('1', 540, 168);
-    x.font = 'bold 26px Arial'; x.fillText('3 dB · 90°', 300, 120);
+    // Marco exterior
+    x.strokeRect(374, 77, 756, 160);
+    // Línea 4–2 (detrás) y línea 3–1 (delante): conductores dobles junto al marco
+    x.strokeRect(549, 84, 399, 15);
+    x.strokeRect(545, 205, 395, 15);
+    // Conectores hembra: patilla + arco abierto hacia fuera
+    const port = (px, py, out) => {
+      L([px, py], [px, py + out * 22]);
+      x.beginPath(); x.arc(px, py + out * 40, 18, out > 0 ? 1.2 * Math.PI : 0.2 * Math.PI, out > 0 ? 1.8 * Math.PI : 0.8 * Math.PI); x.stroke();
+    };
+    port(549, 84, -1); port(948, 84, -1); port(545, 220, 1); port(940, 220, 1);
+    // Flechas de sentido: laterales del marco y trazos centrales
+    L([408, 106], [408, 200]); head(408, 206, Math.PI / 2, 22, 6);
+    L([1094, 214], [1094, 112]); head(1094, 106, -Math.PI / 2, 22, 6);
+    L([452, 120], [452, 157], [690, 157]); head(700, 157, 0);
+    L([1016, 205], [1016, 164], [800, 164]); head(790, 164, Math.PI);
+    // Números de puerto (girados 180°)
+    x.font = 'bold 56px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    for (const [n, px, py] of [['4', 476, 26], ['2', 1046, 30], ['3', 462, 290], ['1', 1020, 290]]) {
+      x.save(); x.translate(px, py); x.rotate(Math.PI); x.fillText(n, 0, 0); x.restore();
+    }
   });
-  const st = new THREE.Mesh(new THREE.PlaneGeometry(25, 10).rotateX(-Math.PI / 2),
+  const st = new THREE.Mesh(new THREE.PlaneGeometry(27, 10.05).rotateX(-Math.PI / 2),
     new THREE.MeshStandardMaterial({ map: sticker, roughness: 0.6, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }));
-  st.position.set(2, LID_TOP + 0.03, 14.3);
+  st.position.set(-7, LID_TOP + 0.03, 13.4);
   lid.add(st);
 }
 
-// 5) Elemento de compensación de presión (sobre la tapa)
+// 5) Elemento de compensación de presión (sobre la tapa): tapón facetado GORE con ranuras de ventilación
 const vent = part('vent', {
   name: 'Compensació de pressió',
-  desc: 'Membrana transpirable (tipus GORE) que iguala la pressió interior amb l’exterior i evita condensacions dins de la cavitat, sense deixar entrar aigua.',
-  explode: [0, 36, 0], anchor: [17, LID_TOP + 9, -2], aboveCut: true,
+  desc: 'Tap de ventilació (tipus GORE PolyVent) roscat a la tapa. A sota del capçal facetat hi ha unes ranures radials; l’aire hi passa a través d’una membrana microporosa de PTFE expandit que deixa sortir el vapor però no deixa entrar aigua ni pols. Iguala la pressió interior amb l’exterior (canvis de temperatura, altitud) i evita condensacions dins de la cavitat.',
+  explode: [0, 36, 0], anchor: [17, LID_TOP + 10, -2], aboveCut: true,
 });
-add(vent, hexLathe([[0, 0], [7.6, 0], [8.4, 0.5], [8.4, 1.8], [0, 1.8]]), MAT.plastic, [17, LID_TOP - 0.2, -1.6]);
-add(vent, lathe([[0, 1.6], [7.4, 1.6], [7.4, 2.4], [8.3, 2.4], [8.3, 4.6], [7.9, 5.9], [6.5, 6.5], [0, 6.5]]), MAT.plastic, [17, LID_TOP - 0.2, -1.6]);
+{
+  const VX = 17, VZ = -1.6, V0 = LID_TOP - 0.2, N = 10;
+  // Polígono de N lados con esquinas redondeadas (perfil del capuchón y de la base)
+  const facetShape = R => {
+    const s = new THREE.Shape(), P = [];
+    for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2 + Math.PI / N; P.push(new THREE.Vector2(Math.cos(a) * R, Math.sin(a) * R)); }
+    for (let i = 0; i < N; i++) {
+      const c = P[i], prev = P[(i + N - 1) % N], next = P[(i + 1) % N];
+      const p0 = c.clone().lerp(prev, 0.22), p1 = c.clone().lerp(next, 0.22);
+      i ? s.lineTo(p0.x, p0.y) : s.moveTo(p0.x, p0.y);
+      s.quadraticCurveTo(c.x, c.y, p1.x, p1.y);
+    }
+    return s;
+  };
+  const facet = (R, y0, y1, bev) => {
+    const g = new THREE.ExtrudeGeometry(facetShape(R), { depth: y1 - y0 - 2 * bev, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 3, curveSegments: 4 });
+    g.rotateX(-Math.PI / 2);
+    g.translate(0, y0 + bev, 0);
+    return g;
+  };
+  const coreMat = MAT.plastic.clone(); coreMat.color.setHex(0x8e9396);   // fondo de las ranuras, en sombra
+  add(vent, facet(7.7, 0, 1.9, 0.3), MAT.plastic, [VX, V0, VZ]);                       // base facetada
+  add(vent, lathe([[0, 1.6], [5.0, 1.6], [5.0, 3.7], [0, 3.7]], 'y', 40), coreMat, [VX, V0, VZ]); // núcleo con la membrana
+  for (let i = 0; i < N; i++) {                                                        // nervios entre ranuras
+    const a = (i / N) * Math.PI * 2 + Math.PI / N;
+    const r = add(vent, new THREE.BoxGeometry(2.6, 2.1, 1.3), MAT.plastic, [VX + Math.cos(a) * 5.8, V0 + 2.65, VZ - Math.sin(a) * 5.8]);
+    r.rotation.y = a;
+  }
+  const capTop = 7.6;
+  add(vent, facet(8.0, 3.5, capTop, 0.6), MAT.plastic, [VX, V0, VZ]);                  // capuchón facetado
+  // Relieve del capuchón: logotipo GORE y texto POLYVENT
+  const logo = canvasTex(512, 512, (x, w, h) => {
+    x.translate(w / 2, h / 2); x.scale(w / 16, h / 16);                                // coordenadas en mm (−8…8), arriba = detrás
+    x.strokeStyle = 'rgba(70,74,78,0.55)'; x.fillStyle = 'rgba(70,74,78,0.55)'; x.lineWidth = 0.16;
+    x.save(); x.rotate(-0.55);
+    x.beginPath(); x.moveTo(-4.6, 1.6); x.lineTo(1.2, 1.6); x.lineTo(4.4, -2.6); x.lineTo(2.2, 1.6); x.lineTo(2.6, 1.6); x.lineTo(-1.0, -1.6); x.lineTo(-4.6, -1.6); x.closePath(); x.stroke();
+    x.strokeRect(-3.9, -1.05, 4.1, 2.1);
+    x.font = 'bold 1.75px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('GORE', -1.85, 0.08);
+    x.restore();
+    x.save(); x.rotate(-0.55);
+    x.font = '0.95px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.translate(3.9, 3.6); x.rotate(-0.95); x.fillText('POLYVENT', 0, 0);
+    x.restore();
+  });
+  logo.repeat.set(1 / 16, 1 / 16); logo.offset.set(0.5, 0.5);
+  const dec = new THREE.Mesh(new THREE.ShapeGeometry(facetShape(8.0), 4).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ map: logo, roughness: 0.6, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }));
+  dec.position.set(VX, V0 + capTop + 0.02, VZ);
+  vent.add(dec);
+}
 
 // 6) Toma roscada sobre la tapa
 const aux = part('aux', {

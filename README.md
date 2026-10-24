@@ -1,13 +1,14 @@
 # 0365-artifacts
 
 Modelos 3D interactivos (HTML + Three.js) para incrustar en los apuntes.
+Publicados con GitHub Pages: https://ddelapaz1.github.io/0365-artifacts/
 
 ## Modelos
 
-| Modelo | Idioma | Archivo | Enlace para incrustar |
-|---|---|---|---|
-| Descargador RF HUBER+SUHNER 3409.41.0081 | Castellano | `descargador-rf-huber-suhner-3409.41.0081.html` | https://raw.githack.com/ddelapaz1/0365-artifacts/main/descargador-rf-huber-suhner-3409.41.0081.html |
-| Descarregador RF HUBER+SUHNER 3409.41.0081 | Català | `descarregador-rf-huber-suhner-3409.41.0081-ca.html` | https://raw.githack.com/ddelapaz1/0365-artifacts/main/descarregador-rf-huber-suhner-3409.41.0081-ca.html |
+| Modelo | Idioma | Enlace para incrustar |
+|---|---|---|
+| Descargador RF HUBER+SUHNER 3409.41.0081 | Castellano | https://ddelapaz1.github.io/0365-artifacts/descargador-rf-huber-suhner-3409.41.0081.html |
+| Descarregador RF HUBER+SUHNER 3409.41.0081 | Català | https://ddelapaz1.github.io/0365-artifacts/descarregador-rf-huber-suhner-3409.41.0081-ca.html |
 
 ## Cómo incrustar en Notion
 
@@ -20,5 +21,4 @@ Vistas iniciales opcionales añadiendo parámetros al final del enlace:
 - `?corte` / `?tall` — abre en corte
 - `?despiece&corte` — ambos
 
-Los enlaces de `raw.githack.com` siempre muestran la última versión de `main` (con unos minutos de caché).
-Para fijar una versión concreta, sustituye `main` por el hash de un commit (y usa `rawcdn.githack.com`).
+Cada `git push` a `main` vuelve a publicar los modelos (tarda uno o dos minutos).

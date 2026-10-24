@@ -21,6 +21,9 @@ Vistas iniciales opcionales añadiendo parámetros al final del enlace:
 
 - `?especejament` — abre en despiece
 - `?tall` — abre en corte
+- `?etiquetes` — abre con las etiquetas visibles (por defecto están ocultas)
 - `?especejament&tall` — ambos
+
+Los parámetros se pueden combinar con `&`, por ejemplo `?especejament&etiquetes`.
 
 Cada `git push` a `main` vuelve a publicar los modelos (tarda uno o dos minutos).

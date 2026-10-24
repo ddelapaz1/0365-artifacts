@@ -48,7 +48,7 @@
     <p>Protector coaxial de sobretensions amb tub de descàrrega de gas (GDT)</p>
   </div>
   <div class="btns">
-    <button id="bLabels" class="on">Etiquetes</button>
+    <button id="bLabels">Etiquetes</button>
     <button id="bExplode">Especejament</button>
     <button id="bCut">Tall</button>
     <button id="bRotate">Girar</button>
@@ -79,7 +79,7 @@ renderer.localClippingEnabled = true;
 container.appendChild(renderer.domElement);
 
 const labelRenderer = new CSS2DRenderer();
-labelRenderer.domElement.className = 'labels';
+labelRenderer.domElement.className = 'labels hidden'; // per defecte, sense etiquetes
 container.appendChild(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
@@ -382,7 +382,7 @@ for (const [key, p] of Object.entries(parts)) {
 }
 
 // ---------- Estado e interacción ----------
-const state = { labels: true, explode: false, cut: false, t: 0, selected: null };
+const state = { labels: false, explode: false, cut: false, t: 0, selected: null };
 const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
 const allMeshes = [];
 model.traverse(o => { if (o.isMesh) { allMeshes.push(o); let p = o.parent; while (p && !p.userData.key) p = p.parent; o.userData.key = p?.userData.key; } });
@@ -451,6 +451,7 @@ $('bReset').onclick = () => { camera.position.copy(HOME_POS); controls.target.co
 const q = new URLSearchParams(location.search);
 if (q.has('especejament') || q.has('despiece')) $('bExplode').click();
 if (q.has('tall') || q.has('corte')) $('bCut').click();
+if (q.has('etiquetes')) $('bLabels').click();
 
 // ---------- Bucle ----------
 function resize() {

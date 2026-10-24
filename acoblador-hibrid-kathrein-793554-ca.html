@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acoblador híbrid 3 dB · KATHREIN 793554 — Model 3D</title>
+<style>
+  :root { --ink:#1b2430; --muted:#5b6675; --accent:#1f4fbf; --panel:rgba(255,255,255,.86); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); }
+  body { background:radial-gradient(ellipse at 50% 35%, #ffffff 0%, #eef1f5 55%, #dde2e9 100%); overflow:hidden; }
+  #app { position:fixed; inset:0; }
+  #app canvas { display:block; }
+  .labels { position:absolute; inset:0; pointer-events:none; }
+  .hud { position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; pointer-events:none; flex-wrap:wrap; }
+  .title { background:var(--panel); backdrop-filter:blur(8px); padding:10px 14px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.08); pointer-events:auto; }
+  .title h1 { font-size:15px; margin:0 0 2px; letter-spacing:.2px; }
+  .title p { font-size:12px; margin:0; color:var(--muted); }
+  .btns { display:flex; gap:6px; flex-wrap:wrap; pointer-events:auto; }
+  .btns button { font:inherit; font-size:12px; border:1px solid #c9d0d9; background:var(--panel); backdrop-filter:blur(8px); color:var(--ink); padding:7px 11px; border-radius:8px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .btns button:hover { border-color:var(--accent); }
+  .btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .info { position:absolute; left:14px; bottom:14px; max-width:min(400px, calc(100% - 28px)); background:var(--panel); backdrop-filter:blur(8px); border-radius:10px; padding:12px 14px; box-shadow:0 2px 10px rgba(0,0,0,.08); font-size:13px; line-height:1.45; }
+  .info h2 { font-size:14px; margin:0 0 4px; color:var(--accent); }
+  .info p { margin:0; }
+  .info .hint { color:var(--muted); font-size:12px; }
+  .lbl { pointer-events:auto; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--ink); white-space:nowrap; transform:translateY(-50%); }
+  .lbl .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px rgba(31,79,191,.22); flex:none; }
+  .lbl .txt { background:rgba(255,255,255,.92); border:1px solid #d3d9e1; padding:3px 7px; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .lbl.sel .txt { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .lbl.left { flex-direction:row-reverse; transform:translate(-100%,-50%); }
+  .labels.hidden .lbl { display:none !important; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="hud">
+  <div class="title">
+    <h1>Acoblador híbrid 3 dB · KATHREIN 793554</h1>
+    <p>Divisor/combinador en quadratura · 800–2200 MHz · 4 × 7-16 femella</p>
+  </div>
+  <div class="btns">
+    <button id="bLabels" class="on">Etiquetes</button>
+    <button id="bExplode">Especejament</button>
+    <button id="bCut">Tall</button>
+    <button id="bRotate">Girar</button>
+    <button id="bReset">Reinicia la vista</button>
+  </div>
+</div>
+<div class="info" id="info">
+  <h2>Model interactiu</h2>
+  <p class="hint">Arrossega per girar · roda per fer zoom · clic dret per desplaçar. Fes clic en una peça o etiqueta per veure’n la funció. Fes servir «Tall» o «Especejament» per veure les línies acoblades de l’interior.</p>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ---------- Renderer / escena ----------
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels';
+container.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(35, 1, 5, 1500);
+const HOME_POS = new THREE.Vector3(112, 150, 172);   // vista como la foto: frente + extremo derecho, desde arriba
+const HOME_TARGET = new THREE.Vector3(0, 18, 0);
+camera.position.copy(HOME_POS);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.copy(HOME_TARGET);
+controls.minDistance = 60;
+controls.maxDistance = 600;
+controls.autoRotateSpeed = 1.2;
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(60, 160, 90);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120, near: 10, far: 400 });
+sun.shadow.bias = -0.0001;
+sun.shadow.normalBias = 0.25;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c0cc, 0.9));
+const fill = new THREE.DirectionalLight(0xffffff, 0.8);
+fill.position.set(-120, 40, 120);
+scene.add(fill);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), new THREE.ShadowMaterial({ opacity: 0.14 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- Texturas generadas ----------
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+// Aluminio cepillado de la tapa (rayas longitudinales en X)
+const brushedTex = canvasTex(512, 512, (x, w, h) => {
+  x.fillStyle = '#e4e7ea'; x.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1400; i++) {
+    const y = Math.random() * h, g = 200 + Math.random() * 55 | 0;
+    x.strokeStyle = `rgba(${g},${g},${g + 3},${0.25 + Math.random() * 0.35})`;
+    x.lineWidth = Math.random() < 0.85 ? 1 : 2;
+    x.beginPath(); x.moveTo(0, y); x.lineTo(w, y + (Math.random() - 0.5) * 2); x.stroke();
+  }
+});
+brushedTex.wrapS = brushedTex.wrapT = THREE.RepeatWrapping;
+brushedTex.repeat.set(1 / 82, 1 / 56); // UV de ExtrudeGeometry en mm
+
+// ---------- Materiales ----------
+// Rendimiento — solo se procesan polígonos visibles:
+//  · back-face culling: FrontSide en todos los sólidos (las caras traseras se descartan en la GPU)
+//  · frustum culling: activo por defecto en cada malla (lo que queda fuera de cámara no se dibuja)
+//  · oclusión: piezas interiores (líneas acopladas) ocultas mientras la cavidad está cerrada; relleno de sección solo en modo corte
+const DS = THREE.FrontSide; // sólidos cerrados: una sola cara (el interior se pinta como sección en modo corte)
+const MAT = {
+  cast:    new THREE.MeshPhysicalMaterial({ color: 0xc9cdd2, metalness: 0.55, roughness: 0.55, side: DS }),
+  lid:     new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: brushedTex, metalness: 0.7, roughness: 0.32, side: DS }),
+  steel:   new THREE.MeshPhysicalMaterial({ color: 0xe6e8eb, metalness: 0.75, roughness: 0.3, side: DS }),
+  silver:  new THREE.MeshPhysicalMaterial({ color: 0xe2e5ea, metalness: 0.9, roughness: 0.22, side: DS }),
+  ptfe:    new THREE.MeshPhysicalMaterial({ color: 0xeeeeea, metalness: 0, roughness: 0.5, side: DS }),
+  plastic: new THREE.MeshPhysicalMaterial({ color: 0xbfc3c6, metalness: 0, roughness: 0.62, side: DS }),
+  slot:    new THREE.MeshBasicMaterial({ color: 0x23262a, side: DS }),
+};
+
+// ---------- Utilidades de geometría ----------
+// Cierra el perfil para que toda pieza de revolución sea un sólido cerrado (perfil en sentido antihorario = normales hacia fuera)
+const v2 = pts => {
+  const v = pts.map(([r, y]) => new THREE.Vector2(r, y));
+  if (!v[0].equals(v[v.length - 1])) v.push(v[0].clone());
+  return v;
+};
+function orient(g, axis) {
+  if (axis === 'x+') g.rotateZ(-Math.PI / 2);      // eje local +Y -> +X mundo
+  else if (axis === 'x-') g.rotateZ(Math.PI / 2);  // eje local +Y -> -X mundo
+  else if (axis === 'z+') g.rotateX(Math.PI / 2);  // eje local +Y -> +Z mundo
+  else if (axis === 'z-') g.rotateX(-Math.PI / 2); // eje local +Y -> -Z mundo
+  return g;
+}
+function lathe(pts, axis = 'y', segs = 96) {
+  return orient(new THREE.LatheGeometry(v2(pts), segs), axis);
+}
+function hexLathe(pts, axis = 'y') {
+  let g = new THREE.LatheGeometry(v2(pts), 6, Math.PI / 6).toNonIndexed();
+  g.computeVertexNormals();
+  return orient(g, axis);
+}
+// Perfil de rosca (diente de sierra) entre y0 e y1
+function threadPts(r, depth, pitch, y0, y1, rIn) {
+  const pts = [[rIn, y0], [r - depth, y0]];
+  for (let y = y0; y < y1 - pitch * 0.5; y += pitch) pts.push([r, y + pitch * 0.5], [r - depth, y + pitch]);
+  pts.push([r - depth, y1], [rIn, y1]);
+  return pts;
+}
+function shapeFrom(pts) {
+  const s = new THREE.Shape();
+  pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+  return s;
+}
+function circlePath(cx, cy, r) {
+  const p = new THREE.Path();
+  p.absarc(cx, cy, r, 0, Math.PI * 2, true);
+  return p;
+}
+
+// ---------- Piezas ----------
+// Unidades ≈ mm (105 × 94 × 51 mm con conectores). X = largo (pestañas), Z = conectores (+Z delante), Y = altura.
+const parts = {};
+const model = new THREE.Group();
+scene.add(model);
+
+function part(key, info) {
+  const g = new THREE.Group();
+  g.userData.key = key;
+  model.add(g);
+  parts[key] = { ...info, group: g, explode: new THREE.Vector3(...(info.explode || [0, 0, 0])) };
+  return g;
+}
+function add(group, geo, mat, pos = [0, 0, 0]) {
+  const m = new THREE.Mesh(geo, mat.clone());
+  m.position.set(...pos);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  group.add(m);
+  return m;
+}
+
+const BX = 40.5, BZ = 27.5, WALL = 6;        // semilargo, semifondo y espesor de pared de la carcasa
+const WALL_BOT = 4.8, WALL_TOP = 40.5;       // las paredes arrancan dentro de la base
+const PORT_X = 27, PORT_Y = 20;              // posición de los conectores
+const LID_TOP = 44.9;
+const CUT_Y = 21;                            // plano de corte horizontal a la altura de las líneas
+
+// 1) Carcasa (cavidad)
+const body = part('body', {
+  name: 'Carcassa (cavitat)',
+  desc: 'Cos d’alumini fos que forma una cavitat metàl·lica tancada al voltant de les línies internes: fa de pla de massa i de blindatge. Les pestanyes amb forat de la base serveixen per cargolar-lo a l’estructura o al rack.',
+  anchor: [4, 9, BZ + 0.5],
+});
+{
+  // Base con pestañas de fijación (en punta, con taladro)
+  const base = new THREE.ExtrudeGeometry(
+    Object.assign(shapeFrom([[-BX, -BZ - 0.2], [BX, -BZ - 0.2], [52.5, -6], [52.5, 6], [BX, BZ + 0.2], [-BX, BZ + 0.2], [-52.5, 6], [-52.5, -6]]),
+      { holes: [circlePath(47, 0, 3.2), circlePath(-47, 0, 3.2)] }),
+    { depth: 5, bevelEnabled: false, curveSegments: 32 });
+  base.rotateX(-Math.PI / 2);
+  add(body, base, MAT.cast);
+
+  // Paredes delantera y trasera, con los taladros de los conectores
+  for (const dir of [1, -1]) {
+    const s = shapeFrom([[-BX, WALL_BOT], [BX, WALL_BOT], [BX, WALL_TOP], [-BX, WALL_TOP]]);
+    s.holes.push(circlePath(-PORT_X, PORT_Y, 8), circlePath(PORT_X, PORT_Y, 8));
+    const g = new THREE.ExtrudeGeometry(s, { depth: WALL, bevelEnabled: false, curveSegments: 48 });
+    add(body, g, MAT.cast, [0, 0, dir > 0 ? BZ - WALL : -BZ]);
+  }
+  // Paredes laterales (solapan 0,2 mm con las otras para no compartir caras)
+  for (const dir of [1, -1]) {
+    add(body, new THREE.BoxGeometry(WALL - 0.1, WALL_TOP - 0.1 - WALL_BOT, 2 * (BZ - WALL) + 0.4), MAT.cast,
+      [dir * (BX - WALL / 2 - 0.05), (WALL_BOT + WALL_TOP - 0.1) / 2, 0]);
+  }
+  // Fondo de la cavidad
+  add(body, new THREE.BoxGeometry(2 * (BX - WALL) + 0.4, 1.1, 2 * (BZ - WALL) + 0.4), MAT.cast, [0, 5.45, 0]);
+  // Cartelas entre pared y pestaña
+  for (const dir of [1, -1]) {
+    const g = new THREE.ExtrudeGeometry(shapeFrom([[dir * 40.2, 4.8], [dir * 44, 4.8], [dir * 40.2, 13]]), { depth: 16, bevelEnabled: false });
+    add(body, g, MAT.cast, [0, 0, -8]);
+  }
+  // Etiqueta del fabricante en el extremo derecho
+  const label = canvasTex(640, 440, (x, w, h) => {
+    x.fillStyle = '#f7f7f4'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#111';
+    x.font = 'bold 54px Arial'; x.fillText('KATHREIN', 28, 70);
+    x.font = '24px Arial'; x.fillText('Designed in Germany', 370, 48); x.fillText('Made in Germany', 370, 78);
+    x.font = '26px Arial'; x.fillText('Type no.', 28, 124);
+    x.font = 'bold 50px Arial'; x.fillText('793554', 140, 128);
+    x.font = '30px Arial'; x.fillText('3-dB Coupler 800–2200 MHz', 28, 172);
+    const bars = (bx, by, bw, bh) => { for (let i = 0; i < bw; ) { const s = 1 + (Math.random() * 4 | 0); if (Math.random() > 0.45) x.fillRect(bx + i, by, s, bh); i += s + 1; } };
+    bars(28, 192, 560, 40); bars(28, 262, 380, 46); bars(28, 336, 440, 46);
+    x.font = '22px Arial'; x.fillText('C 05', 28, 254); x.fillText('(1P) CS7222221.02', 210, 420);
+    x.strokeStyle = '#111'; x.lineWidth = 3; x.strokeRect(500, 250, 100, 100);
+    x.font = 'bold 40px Arial'; x.fillText('CE', 515, 315);
+  });
+  const lbl = new THREE.Mesh(new THREE.PlaneGeometry(34, 23.4).rotateY(Math.PI / 2),
+    new THREE.MeshStandardMaterial({ map: label, roughness: 0.6, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }));
+  lbl.position.set(BX - 0.05, 25, 0);
+  body.add(lbl);
+}
+
+// 2) Líneas acopladas internas (visibles en corte / despiece)
+const lines = part('lines', {
+  name: 'Línies acoblades (λ/4)',
+  desc: 'Dos conductors paral·lels molt propers dins de la cavitat. Al llarg d’uns λ/4 (≈ 55 mm a la freqüència central) part de l’energia d’una línia passa a l’altra; amb l’acoblament ajustat a 3 dB la potència es reparteix a parts iguals i amb 90° de desfasament. És un acoblament «cap enrere»: el senyal acoblat surt per l’extrem més proper a l’entrada. Representació didàctica: la geometria interna real pot ser diferent.',
+  anchor: [0, 26, 0], hideUnlessInside: true,
+});
+{
+  // Barras (línea delantera: puertos 1-3; línea trasera: puertos 2-4) y patillas hasta los contactos de los conectores
+  for (const dir of [1, -1]) {
+    add(lines, new THREE.BoxGeometry(58, 8, 1.6), MAT.silver, [0, PORT_Y, dir * 1.8]);
+    for (const sx of [1, -1]) {
+      const len = 20.5 - 1.8;
+      add(lines, new THREE.BoxGeometry(3, 3, len), MAT.silver, [sx * PORT_X, PORT_Y, dir * (1.8 + len / 2)]);
+    }
+  }
+  // Soportes dieléctricos (PTFE)
+  for (const sx of [1, -1]) add(lines, new THREE.BoxGeometry(6, 10.4, 8), MAT.ptfe, [sx * 14, 5.9 + 5.2, 0]);
+}
+
+// 3) Conectores 7-16 hembra (×4)
+const PORTS = [
+  { key: 'p1', x:  PORT_X, dir:  1, name: 'Port 1 · entrada',
+    desc: 'Entrada de referència. La potència que entra per aquí es reparteix entre el port 3 (línia directa, −3 dB) i el port 2 (acoblat, −3 dB, desfasat 90°). El port 4 queda desacoblat. Connector 7-16: conductor interior de 7 mm i exterior de 16 mm.' },
+  { key: 'p2', x:  PORT_X, dir: -1, name: 'Port 2 · sortida acoblada',
+    desc: 'Rep la meitat de la potència del port 1 (3 ± 1,2 dB segons el full de dades) per acoblament entre línies, amb 90° de desfasament respecte al port 3. És al mateix extrem que l’entrada: l’acoblament és «cap enrere».' },
+  { key: 'p3', x: -PORT_X, dir:  1, name: 'Port 3 · sortida directa',
+    desc: 'Final de la mateixa línia que el port 1: rep l’altra meitat de la potència (3 ± 1,2 dB). Les sortides 2 i 3 porten la mateixa potència i estan en quadratura (90°).' },
+  { key: 'p4', x: -PORT_X, dir: -1, name: 'Port 4 · desacoblat',
+    desc: 'Amb senyal només al port 1, aquí gairebé no hi arriba potència (directivitat > 20 dB). A la pràctica es tanca amb una càrrega de 50 Ω (absorbidor). Si es fan servir l’1 i el 4 com a entrades de dos transmissors, cada sortida (2 i 3) porta la meitat de tots dos senyals: així es combinen sense que un transmissor alimenti l’altre.' },
+];
+for (const p of PORTS) {
+  const g = part(p.key, { name: p.name, desc: p.desc, explode: [0, 0, 0], anchor: [p.x, 37, 41 * p.dir], left: p.x < 0 });
+  const ax = p.dir > 0 ? 'z+' : 'z-', P = [p.x, PORT_Y, p.dir * BZ];
+  add(g, lathe([[8.1, -0.5], [13, -0.5], [13, 9.2], [8.1, 9.2]], ax), MAT.cast, P);                                   // cuerpo fundido
+  add(g, lathe([...threadPts(14.5, 0.7, 1.5, 9, 18.4, 8.2).slice(0, -1), [13.8, 19.5], [10.6, 19.5], [10.6, 17], [8.2, 17]], ax), MAT.steel, P); // rosca M29 y cara
+  add(g, lathe([[3.6, 10.5], [8.25, 10.5], [8.25, 12], [3.6, 12]], ax, 64), MAT.ptfe, P);                              // dieléctrico (hundido)
+  add(g, lathe([[6.2, 11.8], [8.25, 11.8], [8.25, 17.4], [7.4, 17.4], [6.2, 16.6]], ax, 64), MAT.silver, P);          // contacto exterior (láminas)
+  add(g, lathe([[0, -8], [3.5, -8], [3.5, 18], [3.1, 18.5], [2, 18.5], [2, 14.5], [0, 14.5]], ax, 64), MAT.silver, P); // contacto central
+  for (let i = 0; i < 4; i++) {
+    const s = add(g, new THREE.BoxGeometry(6.6, 0.45, 4), MAT.slot, [p.x, PORT_Y, p.dir * (BZ + 16.6)]);
+    s.rotation.z = (i * Math.PI) / 4;
+    s.castShadow = false;
+  }
+}
+
+// 4) Tapa
+const lid = part('lid', {
+  name: 'Tapa',
+  desc: 'Tapa d’alumini raspallat cargolada que tanca la cavitat. Porta la serigrafia amb l’esquema de l’acoblador (ports 1–4), l’element de compensació de pressió i una presa roscada.',
+  explode: [0, 36, 0], anchor: [-38, LID_TOP, 20], left: true, aboveCut: true,
+});
+{
+  const g = new THREE.ExtrudeGeometry(shapeFrom([[-40.1, -27.1], [40.1, -27.1], [40.1, 27.1], [-40.1, 27.1]]),
+    { depth: 3.4, bevelEnabled: true, bevelThickness: 0.6, bevelSize: 0.6, bevelSegments: 2 });
+  g.rotateX(-Math.PI / 2);
+  add(lid, g, MAT.lid, [0, 40.9, 0]);
+
+  // Pegatina con el esquema del acoplador (arriba = detrás)
+  const sticker = canvasTex(600, 240, (x, w, h) => {
+    x.fillStyle = '#f4f4f1'; x.fillRect(0, 0, w, h);
+    x.strokeStyle = '#222'; x.lineWidth = 4; x.strokeRect(6, 6, w - 12, h - 12);
+    x.lineWidth = 6; x.fillStyle = '#222';
+    const line = (y, from, to) => {
+      x.beginPath(); x.moveTo(110, y); x.lineTo(490, y); x.stroke();
+      const ax = (from + to) / 2, d = Math.sign(to - from);
+      x.beginPath(); x.moveTo(ax + d * 22, y); x.lineTo(ax - d * 10, y - 14); x.lineTo(ax - d * 10, y + 14); x.closePath(); x.fill();
+    };
+    line(72, 490, 110);   // línea trasera: 2 ← (acoplado) … 4
+    line(168, 490, 110);  // línea delantera: 1 → 3
+    x.setLineDash([10, 10]); x.lineWidth = 3;
+    x.beginPath(); x.moveTo(200, 100); x.lineTo(400, 100); x.moveTo(200, 140); x.lineTo(400, 140); x.stroke();
+    x.setLineDash([]);
+    x.font = 'bold 46px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('4', 60, 72); x.fillText('2', 540, 72); x.fillText('3', 60, 168); x.fillText('1', 540, 168);
+    x.font = 'bold 26px Arial'; x.fillText('3 dB · 90°', 300, 120);
+  });
+  const st = new THREE.Mesh(new THREE.PlaneGeometry(25, 10).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ map: sticker, roughness: 0.6, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }));
+  st.position.set(2, LID_TOP + 0.03, 14.3);
+  lid.add(st);
+}
+
+// 5) Elemento de compensación de presión (sobre la tapa)
+const vent = part('vent', {
+  name: 'Compensació de pressió',
+  desc: 'Membrana transpirable (tipus GORE) que iguala la pressió interior amb l’exterior i evita condensacions dins de la cavitat, sense deixar entrar aigua.',
+  explode: [0, 36, 0], anchor: [17, LID_TOP + 9, -2], aboveCut: true,
+});
+add(vent, hexLathe([[0, 0], [7.6, 0], [8.4, 0.5], [8.4, 1.8], [0, 1.8]]), MAT.plastic, [17, LID_TOP - 0.2, -1.6]);
+add(vent, lathe([[0, 1.6], [7.4, 1.6], [7.4, 2.4], [8.3, 2.4], [8.3, 4.6], [7.9, 5.9], [6.5, 6.5], [0, 6.5]]), MAT.plastic, [17, LID_TOP - 0.2, -1.6]);
+
+// 6) Toma roscada sobre la tapa
+const aux = part('aux', {
+  name: 'Presa roscada',
+  desc: 'Racord roscat amb aïllant interior muntat a la tapa. La seva funció no es veu a les imatges de referència (possible presa de prova o de pressurització); cal confirmar-la al full de dades.',
+  explode: [0, 36, 0], anchor: [-6, LID_TOP + 13, -1], left: true, aboveCut: true,
+});
+add(aux, hexLathe([[0, 0], [6.6, 0], [7.6, 0.6], [7.6, 3.4], [6.6, 4], [0, 4]]), MAT.steel, [-2, LID_TOP - 0.2, -1]);
+add(aux, lathe(threadPts(4.6, 0.35, 0.7, 3.8, 6.3, 2.8)), MAT.steel, [-2, LID_TOP - 0.2, -1]);
+add(aux, lathe([[0, 3.6], [2.85, 3.6], [2.85, 5.8], [0, 5.8]], 'y', 48), MAT.ptfe, [-2, LID_TOP - 0.2, -1]);
+
+// 7) Tornillos de la tapa (×10, Torx)
+const screws = part('screws', {
+  name: 'Cargols de la tapa (×10)',
+  desc: 'Cargols Torx d’acer inoxidable repartits per tot el contorn. Asseguren un contacte elèctric continu entre tapa i carcassa: qualsevol escletxa empitjoraria el blindatge, la directivitat i la intermodulació passiva (PIM, < −160 dBc segons el full de dades).',
+  explode: [0, 52, 0], anchor: [35, LID_TOP + 4, 0], aboveCut: true,
+});
+for (const [sx, sz] of [[12.6, 24], [-12.6, 24], [12.6, -24], [-12.6, -24], [30, 17.8], [-30, 17.8], [30, -17.8], [-30, -17.8], [35, 0], [-35, 0]]) {
+  add(screws, lathe([[0, -0.3], [3.6, -0.3], [3.6, 0.5], [3.2, 1.4], [2.2, 2], [1.5, 2.05], [1.5, 1.3], [0, 1.3]], 'y', 32), MAT.steel, [sx, LID_TOP, sz]);
+}
+
+// 8) Tornillo lateral
+const gnd = part('gnd', {
+  name: 'Cargol lateral',
+  desc: 'Cargol hexagonal a l’extrem esquerre de la carcassa. Per la seva posició se sol fer servir com a punt de posada a terra; comprova-ho al full de dades.',
+  explode: [-10, 0, 0], anchor: [-BX - 6, 36, -10], left: true, aboveCut: true,
+});
+add(gnd, hexLathe([[0, -0.3], [3.8, -0.3], [4.6, 0.4], [4.6, 3], [3.8, 3.6], [0, 3.6]], 'x-'), MAT.steel, [-BX + 0.1, 33, -10]);
+
+// ---------- Etiquetas ----------
+const labelEls = {};
+for (const [key, p] of Object.entries(parts)) {
+  const el = document.createElement('div');
+  el.className = 'lbl' + (p.left ? ' left' : '');
+  el.innerHTML = `<span class="dot"></span><span class="txt">${p.name}</span>`;
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); select(key); });
+  const obj = new CSS2DObject(el);
+  obj.position.set(...p.anchor);
+  p.group.add(obj);
+  p.label = obj;
+  labelEls[key] = el;
+}
+
+// ---------- Estado e interacción ----------
+const state = { labels: true, explode: false, cut: false, t: 0, selected: null };
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), CUT_Y); // conserva y ≤ CUT_Y: se ve el interior desde arriba
+const allMeshes = [];
+model.traverse(o => { if (o.isMesh) { allMeshes.push(o); let p = o.parent; while (p && !p.userData.key) p = p.parent; o.userData.key = p?.userData.key; } });
+
+// Relleno de sección para el modo corte: las caras traseras de cada sólido se pintan en color plano
+for (const m of allMeshes) {
+  if (m.material.transparent || !m.material.color) continue;
+  const mat = new THREE.MeshBasicMaterial({ color: m.material.color.clone().multiplyScalar(0.6), side: THREE.BackSide, clippingPlanes: [cutPlane] });
+  const sec = new THREE.Mesh(m.geometry, mat);
+  sec.visible = false;
+  sec.userData.key = m.userData.key;
+  m.add(sec);
+  m.userData.section = sec;
+}
+
+const infoEl = document.getElementById('info');
+const DEFAULT_INFO = infoEl.innerHTML;
+
+function select(key) {
+  state.selected = state.selected === key ? null : key;
+  for (const m of allMeshes) {
+    const on = state.selected && m.userData.key === state.selected;
+    if (m.material.emissive) { m.material.emissive.set(on ? 0x1f4fbf : 0x000000); m.material.emissiveIntensity = on ? 0.35 : 0; }
+  }
+  for (const [k, el] of Object.entries(labelEls)) el.classList.toggle('sel', k === state.selected);
+  const p = parts[state.selected];
+  infoEl.innerHTML = p ? `<h2>${p.name}</h2><p>${p.desc}</p>` : DEFAULT_INFO;
+}
+
+const isShown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(allMeshes, false).find(h => isShown(h.object) && (!state.cut || h.point.y <= CUT_Y + 0.01));
+  if (hit) select(hit.object.userData.key);
+  else if (state.selected) select(state.selected);
+});
+
+const $ = id => document.getElementById(id);
+$('bLabels').onclick = () => { state.labels = !state.labels; $('bLabels').classList.toggle('on', state.labels); labelRenderer.domElement.classList.toggle('hidden', !state.labels); };
+$('bExplode').onclick = () => { state.explode = !state.explode; $('bExplode').classList.toggle('on', state.explode); };
+$('bCut').onclick = () => {
+  state.cut = !state.cut;
+  $('bCut').classList.toggle('on', state.cut);
+  for (const m of allMeshes) {
+    m.material.clippingPlanes = state.cut ? [cutPlane] : null;
+    m.material.needsUpdate = true;
+    if (m.userData.section) m.userData.section.visible = state.cut;
+  }
+};
+$('bRotate').onclick = () => { controls.autoRotate = !controls.autoRotate; $('bRotate').classList.toggle('on', controls.autoRotate); };
+$('bReset').onclick = () => { camera.position.copy(HOME_POS); controls.target.copy(HOME_TARGET); controls.update(); };
+
+const q = new URLSearchParams(location.search);
+if (q.has('especejament') || q.has('despiece')) $('bExplode').click();
+if (q.has('tall') || q.has('corte')) $('bCut').click();
+
+// ---------- Bucle ----------
+function resize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  // En contenedores estrechos (incrustado en apuntes) alejamos la cámara para que quepa
+  camera.fov = w / h < 1 ? 35 / Math.max(w / h, 0.55) : 35;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(container);
+resize();
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  state.t += ((state.explode ? 1 : 0) - state.t) * (1 - Math.exp(-dt * 6));
+  const ease = state.t * state.t * (3 - 2 * state.t);
+  const interiorVisible = state.cut || state.t > 0.01;
+  for (const p of Object.values(parts)) {
+    p.group.position.copy(p.explode).multiplyScalar(ease);
+    if (p.hideUnlessInside) {
+      p.group.visible = interiorVisible; // oclusión: dentro de la cavidad cerrada no se ven, no se procesan
+      p.label.visible = state.cut || state.t > 0.6;
+    }
+    if (p.aboveCut) p.group.visible = p.label.visible = !state.cut; // por encima del plano de corte: recortadas del todo, no se procesan
+    // (CSS2DRenderer no hereda la visibilidad del grupo: la etiqueta se oculta explícitamente)
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

@@ -9,6 +9,8 @@ Publicados con GitHub Pages: https://ddelapaz1.github.io/0365-artifacts/
 |---|---|---|
 | Descargador RF HUBER+SUHNER 3409.41.0081 | Castellano | https://ddelapaz1.github.io/0365-artifacts/descargador-rf-huber-suhner-3409.41.0081.html |
 | Descarregador RF HUBER+SUHNER 3409.41.0081 | Català | https://ddelapaz1.github.io/0365-artifacts/descarregador-rf-huber-suhner-3409.41.0081-ca.html |
+| Acoplador híbrido 3 dB KATHREIN 793554 | Castellano | https://ddelapaz1.github.io/0365-artifacts/acoplador-hibrido-kathrein-793554.html |
+| Acoblador híbrid 3 dB KATHREIN 793554 | Català | https://ddelapaz1.github.io/0365-artifacts/acoblador-hibrid-kathrein-793554-ca.html |
 
 ## Cómo incrustar en Notion
 

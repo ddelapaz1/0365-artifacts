@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Diagrames de radiació d’antenes — Model 3D comparatiu</title>
+<title>Diagrames de radiació d’antenes — Model 3D</title>
 <style>
   :root { --ink:#1b2430; --muted:#5b6675; --accent:#1f4fbf; --panel:rgba(255,255,255,.86); --h:#1b2430; --v:#7a2a9a; }
   * { box-sizing:border-box; }
@@ -32,7 +32,6 @@
   table.par td { padding:2.5px 0; border-bottom:1px solid rgba(0,0,0,.06); }
   table.par td:last-child { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
   table.par tr:last-child td { border-bottom:none; }
-  table.par .cmp { color:#7c8794; font-weight:500; padding-left:6px; }
   .btns { position:absolute; top:14px; right:14px; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; max-width:calc(100% - 360px); pointer-events:auto; }
   .btns button { font:inherit; font-size:12px; border:1px solid #c9d0d9; background:var(--panel); backdrop-filter:blur(8px); color:var(--ink); padding:7px 11px; border-radius:8px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.06); }
   .btns button:hover { border-color:var(--accent); }
@@ -40,9 +39,9 @@
   .polar { position:absolute; top:58px; right:14px; padding:8px 10px 6px; display:flex; gap:10px; }
   .polar.hidden { display:none; }
   .polar figure { margin:0; text-align:center; }
-  .polar figcaption { font-size:11px; font-weight:600; margin-bottom:2px; }
-  .polar canvas { width:172px; height:172px; display:block; }
-  .polar .leg { font-size:10.5px; color:var(--muted); margin-top:2px; }
+  .polar figcaption { font-size:12.5px; font-weight:600; margin-bottom:2px; }
+  .polar canvas { width:min(30vh, 21vw); height:min(30vh, 21vw); min-width:150px; min-height:150px; display:block; }
+  .polar .leg { font-size:11.5px; color:var(--muted); margin-top:2px; }
   .info { position:absolute; left:14px; bottom:14px; max-width:min(420px, calc(100% - 300px)); padding:12px 14px; font-size:13px; line-height:1.45; cursor:pointer; }
   .info.hidden { display:none; }
   .info h2 { font-size:14px; margin:0 0 4px; color:var(--accent); }
@@ -58,22 +57,17 @@
   .axl.small { font-size:11px; font-style:normal; font-weight:600; font-family:inherit; color:var(--muted); }
   .readout { position:absolute; right:14px; bottom:14px; width:270px; padding:10px 12px; font-size:12px; line-height:1.5; pointer-events:none; }
   .readout b { color:var(--accent); }
-  .readout .c2 { display:none; color:#5b6675; }
-  .readout .c2 b { color:#5b6675; }
-  .readout.cmp .c2 { display:block; }
   .bar { position:relative; height:10px; border-radius:3px; margin:8px 0 2px; }
   .ticks { position:relative; height:14px; font-size:10px; color:var(--muted); }
   .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
   .ticks span:first-child { transform:none; }
   .ticks span:last-child { transform:translateX(-100%); }
   .mark { position:absolute; top:-3px; width:2px; height:16px; background:#1b2430; transform:translateX(-50%); }
-  .mark.m2 { background:#8a94a1; display:none; }
-  .readout.cmp .mark.m2 { display:block; }
   .readout .cap { font-size:10.5px; color:var(--muted); }
   @media(max-width:860px) {
     .side { width:262px; padding:8px 10px; } .side h1 { font-size:13px; } .side .sub { font-size:10.5px; }
     .chip { font-size:11px; padding:4px 7px; } .btns { max-width:calc(100% - 290px); } .btns button { padding:6px 8px; font-size:11px; }
-    .polar canvas { width:130px; height:130px; } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
+    .polar canvas { width:min(30vh, 34vw); height:min(30vh, 34vw); } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
     .readout { width:240px; }
   }
   @media(max-width:600px) {
@@ -92,11 +86,10 @@
 <div id="app"></div>
 <div class="side card">
   <h1>Diagrames de radiació d’antenes</h1>
-  <p class="sub">Model 3D comparatiu · espai lliure · camp llunyà</p>
+  <p class="sub">Model 3D · espai lliure · camp llunyà</p>
   <h3>Antena</h3>
   <div class="chips" id="families"></div>
   <div class="chips subs" id="variants"></div>
-  <div class="row"><label for="sCompare">Compara amb</label><select id="sCompare"></select></div>
   <div class="row"><label for="sScale">Escala radial</label><select id="sScale">
     <option value="dbi">Guany absolut (dBi)</option>
     <option value="db">Relativa (dB)</option>
@@ -120,13 +113,12 @@
 </div>
 <div class="info card" id="info">
   <h2>Model interactiu</h2>
-  <p class="hint">Tria una antena al panell de l’esquerra. Arrossega per girar · roda per fer zoom · clic dret per desplaçar. Passa el cursor pel diagrama per llegir el guany en cada direcció (θ, φ). «Compara amb» superposa un segon diagrama translúcid a la mateixa escala. Fes clic en un element o etiqueta per veure’n l’explicació.</p>
+  <p class="hint">Tria una antena al panell de l’esquerra. Arrossega per girar · roda per fer zoom · clic dret per desplaçar. Passa el cursor pel diagrama per llegir el guany en cada direcció (θ, φ). Fes clic en un element o etiqueta per veure’n l’explicació.</p>
 </div>
 <div class="readout card" id="readout">
   <div>Direcció: <b id="rDir">—</b></div>
   <div><span id="rName1">—</span>: <b id="rG1">—</b></div>
-  <div class="c2"><span id="rName2">—</span>: <b id="rG2">—</b></div>
-  <div class="bar" id="bar"><div class="mark m2" id="m2"></div><div class="mark" id="m1"></div></div>
+  <div class="bar" id="bar"><div class="mark" id="m1"></div></div>
   <div class="ticks" id="ticks"></div>
   <div class="cap">Escala de colors: guany en dBi</div>
 </div>
@@ -202,11 +194,11 @@ function sectorF(x, y, z) {
   return Math.max(lin(-aE) * sectorCol(z), lin(-32) * sectorCol(0) * 0.6 * (0.5 + 0.5 * Math.cos(az * 3) ** 2));
 }
 // Bilobular (bidireccional): dos lòbuls oposats (φ = 0° i 180°), columna vertical més curta
-const biCol = columnF(5, 0.8, 0.3);
+const biCol = columnF(3, 0.7, 0.3);
 function biF(x, y, z) {
   const [az, el] = azEl(x, y, z);
   const azm = Math.min(Math.abs(az), Math.PI - Math.abs(az)); // angle respecte del lòbul més proper
-  const aE = Math.min(12 * (azm / (36 * D2R)) ** 2 + 12 * (el / (70 * D2R)) ** 2, 26);
+  const aE = Math.min(12 * (azm / (40 * D2R)) ** 2 + 12 * (el / (70 * D2R)) ** 2, 26);
   return Math.max(lin(-aE) * biCol(z), lin(-30) * biCol(0));
 }
 // Botzina piramidal: obertura a × b (λ). Pla H (y): distribució cosinus; pla E (z): uniforme
@@ -248,6 +240,7 @@ const YAGI = {
   3: { xs: [-0.2, 0, 0.2], amps: [0.8, 1, 0.75], delta: 0.3, len: [0.5, 0.47, 0.44] },
   4: { xs: [-0.2, 0, 0.2, 0.45], amps: [0.8, 1, 0.75, 0.7], delta: 0.3, len: [0.5, 0.47, 0.44, 0.43] },
   6: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05], amps: [0.7, 1, 0.75, 0.7, 0.65, 0.6], delta: 0.2, len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41] },
+  9: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05, 1.4, 1.75, 2.1], amps: [0.6, 1, 0.8, 0.78, 0.76, 0.74, 0.72, 0.7, 0.68], delta: 0.14, len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41, 0.40, 0.40, 0.39] },
 };
 const env465 = a => a < 48 ? 32 - 25 * Math.log10(a) : -10;              // ITU-R S.465 (estació terrena)
 const envMiniLink = a => Math.max(29 - 25 * Math.log10(a), -22);        // antena d'alt rendiment amb faldó
@@ -268,6 +261,7 @@ const ANT = {
   'yagi-3': { family: 'yagi', variant: '3 elements', name: 'Yagi-Uda de 3 elements', short: 'Yagi 3 el.', yagi: 3, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
   'yagi-4': { family: 'yagi', variant: '4 elements', name: 'Yagi-Uda de 4 elements', short: 'Yagi 4 el.', yagi: 4, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
   'yagi-6': { family: 'yagi', variant: '6 elements', name: 'Yagi-Uda de 6 elements', short: 'Yagi 6 el.', yagi: 6, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
+  'yagi-9': { family: 'yagi', variant: '9 elements', name: 'Yagi-Uda de 9 elements', short: 'Yagi 9 el.', yagi: 9, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
   sectorial: {
     family: 'sectorial', name: 'Panell sectorial 90° × 7°', short: 'Sectorial', f: sectorF, gain: 17,
     band: '1,7–2,7 GHz (mòbil / Wi-Fi)', pol: 'Vertical (o ±45°)',
@@ -276,20 +270,20 @@ const ANT = {
   },
   'parabolica-satellit': {
     family: 'parabolica', variant: 'Satèl·lit (80 cm, Ku)', name: 'Parabòlica de satèl·lit 80 cm', short: 'Parab. satèl·lit',
-    sym: dishF(0.8 / 0.02564, 0.3, 38.3, env465, 2.7), gain: 38.3, band: 'Ku 10,7–12,75 GHz (11,7 GHz)', pol: 'Lineal H/V (LNB)',
-    desc: 'Parabòlica de recepció de TV per satèl·lit en banda Ku, de 80 cm, tipus offset (l’LNB queda fora del feix i no fa ombra). A 11,7 GHz: G ≈ 38 dBi i feix d’uns 2°, per això cal apuntar-la amb precisió (des de Catalunya, Astra 19,2° E amb una elevació d’uns 38°; aquí el feix es dibuixa horitzontal per poder comparar). Lòbuls propers calculats amb la teoria d’obertura (il·luminació parabòlica sobre graó); lòbuls llunyans segons l’envolupant de referència ITU-R S.465 (32 − 25 log φ dBi).',
+    sym: dishF(0.8 / 0.02564, 0.25, 38, env465, 2.7), gain: 38, band: 'Ku 10,7–12,75 GHz (11,7 GHz)', pol: 'Lineal H/V (LNB)',
+    desc: 'Parabòlica de recepció de TV per satèl·lit en banda Ku, de 80 cm, tipus offset (l’LNB queda fora del feix i no fa ombra). A 11,7 GHz: G ≈ 38 dBi (catàlegs: 37,3–38,2 dBi) i feix d’uns 2,2°, per això cal apuntar-la amb precisió (des de Catalunya, Astra 19,2° E amb una elevació d’uns 38°; aquí el feix es dibuixa horitzontal per poder comparar). Lòbuls propers calculats amb la teoria d’obertura (il·luminació parabòlica sobre graó); lòbuls llunyans segons l’envolupant de referència ITU-R S.465 (32 − 25 log φ dBi).',
     hw: 'Reflector parabòlic de 80 cm amb el braç i l’LNB (amplificador i convertidor de baix soroll) al focus; suport al pal.',
   },
   'parabolica-minilink': {
     family: 'parabolica', variant: 'Radioenllaç MINI-LINK (0,6 m, 23 GHz)', name: 'Parabòlica de radioenllaç 0,6 m (MINI-LINK)', short: 'Parab. MINI-LINK',
-    sym: dishF(0.6 / 0.01304, 0.2, 41, envMiniLink, 2), gain: 41, band: '23 GHz (radioenllaç)', pol: 'Lineal V o H',
-    desc: 'Antena de radioenllaç punt a punt tipus Ericsson MINI-LINK: parabòlica de 0,6 m a 23 GHz amb faldó (<i>shroud</i>) i radome, acoblada directament a la unitat de ràdio exterior (ODU). G ≈ 41 dBi i feix d’uns 1,5°: els dos extrems s’alineen amb visió directa. El faldó absorbent redueix molt els lòbuls laterals i posteriors (antena d’alt rendiment, F/B > 60 dB) per poder reutilitzar freqüències amb altres enllaços del mateix emplaçament.',
+    sym: dishF(0.6 / 0.01304, 0, 40, envMiniLink, 2), gain: 40, band: '23 GHz (radioenllaç)', pol: 'Lineal V o H',
+    desc: 'Antena de radioenllaç punt a punt tipus Ericsson MINI-LINK: parabòlica de 0,6 m a 23 GHz amb faldó (<i>shroud</i>) i radome, acoblada directament a la unitat de ràdio exterior (ODU). G ≈ 40 dBi i feix d’uns 1,5° (catàlegs de 0,6 m a 23 GHz: 39–41 dBi, 1,3–1,7°): els dos extrems s’alineen amb visió directa. El faldó absorbent redueix molt els lòbuls laterals i posteriors (antena d’alt rendiment, F/B > 60 dB) per poder reutilitzar freqüències amb altres enllaços del mateix emplaçament.',
     hw: 'Reflector de 0,6 m dins d’un faldó cilíndric tancat amb un radome pla; la unitat de ràdio (ODU) s’acobla al darrere i tot es fixa al pal.',
   },
   bilobular: {
     family: 'bilobular', name: 'Antena bilobular (bidireccional)', short: 'Bilobular', f: biF, eff: 0.85, fb: false,
     band: '0,7–2,7 GHz (carreteres, túnels)', pol: 'Vertical',
-    desc: 'Antena bidireccional: dos lòbuls principals oposats (φ = 0° i 180°) d’uns 36° en horitzontal i 14° en vertical, d’uns 15 dBi cadascun. Serveix per donar cobertura a carreteres, vies de tren, túnels o carrers llargs des d’un sol punt: la potència es concentra en les dues direccions de la via. Model: dos lòbuls tipus 3GPP + columna vertical de 5 elements.',
+    desc: 'Antena bidireccional: dos lòbuls principals oposats (φ = 0° i 180°) d’uns 40° en horitzontal i 26° en vertical, d’uns 12 dBi cadascun (les antenes comercials de túnel i carretera tenen entre 9 i 13 dBi). Serveix per donar cobertura a carreteres, vies de tren, túnels o carrers llargs des d’un sol punt: la potència es concentra en les dues direccions de la via. Model: dos lòbuls tipus 3GPP + columna vertical de 3 elements.',
     hw: 'Panell prim amb la columna de radiadors i sense reflector (o dos panells esquena contra esquena), subjectat al pal pel costat.',
   },
   botzina: {
@@ -438,7 +432,6 @@ const fmtDb = g => g < 1e-6 ? 'nul (−∞ dBi)' : `${fmt(db(g))} dBi`;
 const FS = THREE.FrontSide;
 const MAT = {
   pattern: new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, metalness: 0, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3, side: FS }),
-  ghost:   new THREE.MeshStandardMaterial({ color: 0x8a94a1, roughness: 0.5, transparent: true, opacity: 0.26, depthWrite: false, side: FS }),
   cutH:    new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.5, side: FS }),
   cutV:    new THREE.MeshStandardMaterial({ color: 0x7a2a9a, roughness: 0.5, side: FS }),
   source:  new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffc22e, emissiveIntensity: 1.2, roughness: 0.3, side: FS }),
@@ -448,7 +441,6 @@ const MAT = {
   radome:  new THREE.MeshStandardMaterial({ color: 0xf1f2f4, roughness: 0.6, side: FS }),
   feed:    new THREE.MeshStandardMaterial({ color: 0xe8a33a, roughness: 0.4, metalness: 0.1, side: FS }),
   dir:     new THREE.MeshStandardMaterial({ color: 0x1f4fbf, roughness: 0.35, side: FS }),
-  dot2:    new THREE.MeshStandardMaterial({ color: 0x5b6675, roughness: 0.35, side: FS }),
   ax: {
     x: new THREE.MeshStandardMaterial({ color: 0xc8352b, roughness: 0.4, side: FS }),
     y: new THREE.MeshStandardMaterial({ color: 0x2f9a45, roughness: 0.4, side: FS }),
@@ -541,7 +533,7 @@ function gridFor(a, coarse) {
   if (a.beam) return { kind: 'beam', us: range(0, 180, coarse ? 2 : 0.5), vs: range(0, 360, coarse ? 8 : 2) };
   return { kind: 'tp', us: range(0, 180, coarse ? 2 : 0.5), vs: range(0, 360, coarse ? 6 : 1.5) };
 }
-const state = { id: 'dipol', compare: '', scale: 'dbi', labels: false, cut: false, antenna: false, polar: true, selected: null };
+const state = { id: 'dipol', scale: 'dbi', labels: false, cut: false, antenna: false, polar: true, selected: null };
 function radius(g, a) {
   if (state.scale === 'dbi') return R_MAX * THREE.MathUtils.clamp((db(g) - G_FLOOR) / (G_TOP - G_FLOOR), 0, 1);
   if (state.scale === 'db') return R_MAX * THREE.MathUtils.clamp((db(g / a.Gmax) + 40) / 40, 0, 1);
@@ -592,9 +584,8 @@ const cuts = part('cuts', {
   desc: 'Intersecció del diagrama amb el pla horitzontal xy (θ = 90°, en negre) i amb el pla vertical xz (φ = 0° i 180°, en lila), que contenen la direcció de màxima radiació. Són els diagrames polars 2D dels catàlegs (panell «Talls 2D»): d’aquí es mesuren l’amplada de feix a −3 dB en cada pla, els lòbuls secundaris i la relació davant/darrere (F/B).',
 });
 const antennaPart = part('antenna', { name: 'Antena (esquemàtica)', desc: '', hideUnlessInside: true });
-const compare = part('compare', { name: 'Diagrama comparat', desc: '' });
 
-let patternMesh = null, ghostMesh = null, proxy = null;
+let patternMesh = null, proxy = null;
 
 // ---------- Eixos i graella polar ----------
 const axes = part('axes', {
@@ -638,7 +629,6 @@ axes.add(dirGroup);
 const RA = R_MAX * 1.06;
 const dirArrow = arrow(dirGroup, new THREE.Vector3(), new THREE.Vector3(0, 1, 0), R_MAX * 1.14, 1.0, MAT.dir, 3.2);
 const dot1 = add(dirGroup, new THREE.SphereGeometry(2.6, 24, 12), MAT.dir);
-const dot2 = add(dirGroup, new THREE.SphereGeometry(2.6, 24, 12), MAT.dot2);
 let arcTheta = null, arcPhi = null, projLines = [];
 const thetaTag = tag(model, 'θ', new THREE.Vector3(), 'axl', '#1f4fbf');
 const phiTag = tag(model, 'φ', new THREE.Vector3(), 'axl', '#1f4fbf');
@@ -649,9 +639,6 @@ function setDirection(theta, phi) {
   dirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
   const a = ANT[state.id], g1 = a.G(x, y, z);
   dot1.position.copy(d).multiplyScalar(radius(g1, a));
-  const b = state.compare ? ANT[state.compare] : null, g2 = b ? b.G(x, y, z) : 0;
-  dot2.visible = !!b;
-  if (b) dot2.position.copy(d).multiplyScalar(radius(g2, b));
   for (const o of [arcTheta, arcPhi, ...projLines]) if (o) { o.geometry.dispose(); dirGroup.remove(o); }
   const n = 48;
   arcTheta = line(dirGroup, Array.from({ length: n + 1 }, (_, i) => dirOf(theta * i / n, phi).multiplyScalar(RA)), LINE.dir);
@@ -665,7 +652,6 @@ function setDirection(theta, phi) {
   $('rDir').textContent = `θ = ${Math.round(theta / D2R)}° · φ = ${Math.round(phi / D2R)}°`;
   $('rG1').textContent = 'G = ' + fmtDb(g1);
   $('m1').style.left = barPct(db(Math.max(g1, 1e-6)));
-  if (b) { $('rG2').textContent = 'G = ' + fmtDb(g2); $('m2').style.left = barPct(db(Math.max(g2, 1e-6))); }
 }
 
 // ---------- Antenes físiques (esquemàtiques, a l'origen) ----------
@@ -678,7 +664,7 @@ const MODELS = {
     rod(g, phys(-1.2, 0, 0), phys(-16, 0, 0), 0.5, MAT.dark);
   },
   yagi(g, a) {
-    const y = YAGI[a.yagi], L = 46, mid = (y.xs[0] + y.xs.at(-1)) / 2 * L;
+    const y = YAGI[a.yagi], L = a.yagi > 6 ? 34 : 46, mid = (y.xs[0] + y.xs.at(-1)) / 2 * L;
     rod(g, phys(y.xs[0] * L - mid - 4, 0, 0), phys(y.xs.at(-1) * L - mid + 4, 0, 0), 1.0, MAT.alu);
     y.xs.forEach((x, n) => {
       const X = x * L - mid, h = y.len[n] * L / 2;
@@ -764,16 +750,16 @@ function syncClip() {
   model.traverse(o => { if (o.material && !o.userData.isSection) applyClip(o.material); });
 }
 
-// ---------- Construcció segons l'antena, la comparació i l'escala ----------
+// ---------- Construcció segons l'antena i l'escala ----------
 function tube(group, a, plane, material) {
   const pts = [];
   for (const t of cutAngles(a)) {
-    const [x, y, z] = cutDirs[plane](t), r = radius(a.G(x, y, z), a) + 0.3, p = phys(x * r, y * r, z * r);
+    const [x, y, z] = cutDirs[plane](t), r = radius(a.G(x, y, z), a) + 0.15, p = phys(x * r, y * r, z * r);
     if (!pts.length || p.distanceTo(pts.at(-1)) > 0.08) pts.push(p);
   }
   if (pts[0].distanceTo(pts.at(-1)) < 0.08) pts.pop();
   const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
-  return add(group, new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 3000), 0.75, 8, true), material);
+  return add(group, new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 3000), 0.38, 6, true), material);
 }
 function anchorOn(a, theta, phi, extra = 4) {
   const d = dirOf(theta, phi), x = Math.sin(theta) * Math.cos(phi), y = Math.sin(theta) * Math.sin(phi), z = Math.cos(theta);
@@ -807,23 +793,9 @@ function buildAntenna() {
   const box = new THREE.Box3().setFromObject(antennaPart);
   parts.antenna.label.position.set(box.max.x * 0.5, box.max.y + 4, 0);
 }
-function buildCompare() {
-  disposeChildren(compare);
-  ghostMesh = null;
-  if (!state.compare) return;
-  const b = prepare(state.compare);
-  ghostMesh = add(compare, patternGeometry(b, false, false), MAT.ghost);
-  ghostMesh.castShadow = false;
-  parts.compare.name = `Comparació · ${b.name}`;
-  parts.compare.desc = `Diagrama de ${b.name} a la mateixa escala radial (translúcid). ${b.desc}`;
-  labelEls.compare.querySelector('.txt').textContent = parts.compare.name;
-  parts.compare.label.position.copy(b.hpH == null ? anchorOn(b, 70 * D2R, 160 * D2R) : anchorOn(b, 90 * D2R, 0, 6));
-}
-function rebuild({ antenna = false, comparison = false } = {}) {
+function rebuild({ antenna = false } = {}) {
   buildPattern();
   if (antenna) buildAntenna();
-  if (comparison || state.scale !== rebuild.scale) buildCompare();
-  rebuild.scale = state.scale;
   buildRings();
   syncClip();
   refresh();
@@ -837,7 +809,7 @@ function rebuild({ antenna = false, comparison = false } = {}) {
 const labelEls = {};
 for (const [key, p] of Object.entries(parts)) {
   const el = document.createElement('div');
-  el.className = 'lbl' + (key === 'cuts' || key === 'compare' ? ' left' : '');
+  el.className = 'lbl' + (key === 'cuts' ? ' left' : '');
   el.innerHTML = `<span class="dot"></span><span class="txt">${p.name}</span>`;
   el.addEventListener('pointerdown', e => { e.stopPropagation(); select(key); });
   const obj = new CSS2DObject(el);
@@ -915,8 +887,6 @@ function buildSelector() {
     const ids = Object.keys(ANT).filter(k => ANT[k].family === f);
     setAntenna(f === 'yagi' ? 'yagi-4' : ids[0]);
   });
-  $('sCompare').innerHTML = '<option value="">— Cap —</option>' + Object.entries(ANT).map(([k, a]) => `<option value="${k}">${a.name}</option>`).join('');
-  $('sCompare').onchange = e => setCompare(e.target.value);
   $('sScale').onchange = e => setScale(e.target.value);
 }
 function syncSelector() {
@@ -925,7 +895,6 @@ function syncSelector() {
   const vars = Object.entries(ANT).filter(([, v]) => v.family === a.family && v.variant);
   $('variants').innerHTML = vars.map(([k, v]) => `<button class="chip${k === state.id ? ' on' : ''}" data-id="${k}">${v.variant}</button>`).join('');
   $('variants').querySelectorAll('.chip').forEach(b => b.onclick = () => setAntenna(b.dataset.id));
-  $('sCompare').value = state.compare;
   $('sScale').value = state.scale;
   $('scaleHint').textContent = {
     dbi: 'Radi ∝ guany en dBi (de −30 a +45 dBi): totes les antenes a la mateixa escala; l’esfera isotròpica (0 dBi) és la referència.',
@@ -934,9 +903,9 @@ function syncSelector() {
   }[state.scale];
 }
 function updatePanel() {
-  const a = ANT[state.id], b = state.compare ? ANT[state.compare] : null;
+  const a = ANT[state.id];
   const hp = v => v == null ? 'omni' : fmt(v, v < 10 ? 2 : 1) + '°';
-  const row = (k, f) => `<tr><td>${k}</td><td>${f(a)}${b ? `<span class="cmp">· ${f(b)}</span>` : ''}</td></tr>`;
+  const row = (k, f) => `<tr><td>${k}</td><td>${f(a)}</td></tr>`;
   $('params').innerHTML = [
     row('Guany G', x => `${fmt(db(x.Gmax), x.Gmax > 1.01 ? 1 : 0)} dBi`),
     row('Directivitat D', x => `${fmt(db(x.Dmax), x.Dmax > 1.01 ? 1 : 0)} dBi`),
@@ -948,8 +917,6 @@ function updatePanel() {
     `<tr><td>Polarització</td><td>${a.pol}</td></tr>`,
   ].join('');
   $('rName1').textContent = a.short;
-  $('rName2').textContent = b ? b.short : '';
-  $('readout').classList.toggle('cmp', !!b);
 }
 
 // ---------- Talls 2D (diagrames polars) ----------
@@ -961,24 +928,24 @@ function drawPolar(canvas, plane) {
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   const c = w / 2, Rc = w / 2 - 12, k = Rc / R_MAX;
   ctx.clearRect(0, 0, w, w);
-  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(124,135,148,.45)'; ctx.fillStyle = '#5b6675'; ctx.font = '9px system-ui';
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(124,135,148,.45)'; ctx.fillStyle = '#5b6675'; ctx.font = `${Math.max(9, Math.round(w / 24))}px system-ui`;
   const set = RING_SETS[state.scale];
   for (const v of set.values) { ctx.beginPath(); ctx.arc(c, c, set.r(v) * k, 0, 2 * Math.PI); ctx.stroke(); }
   if (state.scale === 'db') { ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(200,53,43,.6)'; ctx.beginPath(); ctx.arc(c, c, R_MAX * 37 / 40 * k, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = 'rgba(124,135,148,.45)'; }
   for (let t = 0; t < 360; t += 30) { ctx.beginPath(); ctx.moveTo(c, c); ctx.lineTo(c + Rc * Math.cos(t * D2R), c - Rc * Math.sin(t * D2R)); ctx.stroke(); }
   const v0 = set.values.at(-1);
-  ctx.fillText(set.label(v0), c + 3, c - set.r(v0) * k + 9);
-  ctx.fillText(plane === 'h' ? 'x' : 'x', w - 9, c - 3);
-  ctx.fillText(plane === 'h' ? 'y' : 'z', c + 3, 9);
+  const fs = Math.max(9, Math.round(w / 24));
+  ctx.fillText(set.label(v0), c + 3, c - set.r(v0) * k + fs);
+  ctx.fillText('x', w - fs * 0.8, c - 3);
+  ctx.fillText(plane === 'h' ? 'y' : 'z', c + 3, fs);
   const trace = (a, color, dash) => {
-    ctx.beginPath(); ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.6, w / 130);
     cutAngles(a).forEach((t, i) => {
       const r = radius(a.G(...cutDirs[plane](t)), a) * k, X = c + r * Math.cos(t), Y = c - r * Math.sin(t);
       i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
     });
     ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
   };
-  if (state.compare) trace(ANT[state.compare], '#8a94a1', [4, 3]);
   trace(ANT[state.id], plane === 'h' ? '#1b2430' : '#7a2a9a', []);
 }
 function drawPolars() { if (state.polar) { drawPolar($('cH'), 'h'); drawPolar($('cV'), 'v'); } }
@@ -989,12 +956,7 @@ function setAntenna(id) {
   syncSelector();
   rebuild({ antenna: true });
 }
-function setCompare(id) {
-  state.compare = id === state.id ? '' : id;
-  syncSelector();
-  rebuild({ comparison: true });
-}
-function setScale(s) { state.scale = s; syncSelector(); rebuild({ comparison: true }); }
+function setScale(s) { state.scale = s; syncSelector(); rebuild(); }
 
 function refresh() {
   const translucent = state.antenna;
@@ -1007,10 +969,8 @@ function refresh() {
   // Oclusió: l'antena física queda dins del diagrama opac → només es processa si es pot veure
   const inside = state.cut || state.antenna;
   antennaPart.visible = parts.antenna.label.visible = inside;
-  compare.visible = parts.compare.label.visible = !!state.compare;
   model.traverse(o => { if (o.userData.isSection && o.parent !== patternMesh) o.visible = state.cut; });
   if (!inside && state.selected === 'antenna') select('antenna');
-  if (!state.compare && state.selected === 'compare') select('compare');
 }
 $('bLabels').onclick = () => { state.labels = !state.labels; $('bLabels').classList.toggle('on', state.labels); labelRenderer.domElement.classList.toggle('hidden', !state.labels); };
 $('bCut').onclick = () => { state.cut = !state.cut; $('bCut').classList.toggle('on', state.cut); syncClip(); refresh(); };
@@ -1027,14 +987,13 @@ $('ticks').innerHTML = [-30, -15, 0, 15, 30, 45].map(v => `<span style="left:${b
 // ---------- Inici (paràmetres d'URL) ----------
 const q = new URLSearchParams(location.search);
 if (ANT[q.get('antena')]) state.id = q.get('antena');
-if (ANT[q.get('compara')] && q.get('compara') !== state.id) state.compare = q.get('compara');
 if (RING_SETS[q.get('escala')]) state.scale = q.get('escala');
 state.polar = window.innerWidth > 860 && !q.has('sense-talls');
 $('bPolar').classList.toggle('on', state.polar);
 $('polar').classList.toggle('hidden', !state.polar);
 buildSelector();
 syncSelector();
-rebuild({ antenna: true, comparison: true });
+rebuild({ antenna: true });
 if (q.has('tall')) $('bCut').click();
 if (q.has('antena-visible')) $('bAntenna').click();
 if (q.has('etiquetes')) $('bLabels').click();

@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diplexor · KATHREIN 78210620 — Model 3D</title>
+<style>
+  :root { --ink:#1b2430; --muted:#5b6675; --accent:#1f4fbf; --panel:rgba(255,255,255,.86); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); }
+  body { background:radial-gradient(ellipse at 50% 35%, #ffffff 0%, #eef1f5 55%, #dde2e9 100%); overflow:hidden; }
+  #app { position:fixed; inset:0; }
+  #app canvas { display:block; }
+  .labels { position:absolute; inset:0; pointer-events:none; }
+  .hud { position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; pointer-events:none; flex-wrap:wrap; }
+  .title { background:var(--panel); backdrop-filter:blur(8px); padding:10px 14px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.08); pointer-events:auto; }
+  .title h1 { font-size:15px; margin:0 0 2px; letter-spacing:.2px; }
+  .title p { font-size:12px; margin:0; color:var(--muted); }
+  .btns { display:flex; gap:6px; flex-wrap:wrap; pointer-events:auto; }
+  .btns button { font:inherit; font-size:12px; border:1px solid #c9d0d9; background:var(--panel); backdrop-filter:blur(8px); color:var(--ink); padding:7px 11px; border-radius:8px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .btns button:hover { border-color:var(--accent); }
+  .btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .info { position:absolute; left:14px; bottom:14px; max-width:min(400px, calc(100% - 28px)); background:var(--panel); backdrop-filter:blur(8px); border-radius:10px; padding:12px 14px; box-shadow:0 2px 10px rgba(0,0,0,.08); font-size:13px; line-height:1.45; }
+  .info { cursor:pointer; }
+  .info.hidden { display:none; }
+  .info h2 { font-size:14px; margin:0 0 4px; color:var(--accent); }
+  .info p { margin:0; }
+  .info .hint { color:var(--muted); font-size:12px; }
+  .lbl { pointer-events:auto; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--ink); white-space:nowrap; transform:translateY(-50%); }
+  .lbl .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px rgba(31,79,191,.22); flex:none; }
+  .lbl .txt { background:rgba(255,255,255,.92); border:1px solid #d3d9e1; padding:3px 7px; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .lbl.sel .txt { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .lbl.left { flex-direction:row-reverse; transform:translate(-100%,-50%); }
+  .note { position:absolute; right:14px; bottom:14px; padding:7px 10px; border-radius:8px; background:var(--panel); font-size:11px; color:var(--muted); pointer-events:none; max-width:260px; }
+  @media(max-width:600px) { .hud { gap:6px; } .title h1 { font-size:13px; } .title p { font-size:10px; } .btns button { padding:6px 8px; font-size:11px; } .info { bottom:45px; font-size:12px; } .note { left:14px; max-width:none; text-align:center; } .lbl { font-size:10px; } }
+  .labels.hidden .lbl { display:none !important; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="hud">
+  <div class="title">
+    <h1>Diplexor · KATHREIN 78210620</h1>
+    <p>GSM 1800 + UMTS · 3 ports · carcassa 199 × 199 × 48 mm</p>
+  </div>
+  <div class="btns">
+    <button id="bLabels">Etiquetes</button>
+    <button id="bExplode">Especejament</button>
+    <button id="bCut">Tall</button>
+    <button id="bRotate">Girar</button>
+    <button id="bReset">Reinicia la vista</button>
+  </div>
+</div>
+<div class="info" id="info">
+  <h2>Model interactiu</h2>
+  <p class="hint">Arrossega per girar · roda per fer zoom · clic dret per desplaçar. Fes clic en una peça o etiqueta per veure’n la funció. Fes servir «Tall» o «Especejament» per explorar els dos filtres de l’interior (representació didàctica).</p>
+</div>
+
+<div class="note">Exterior segons els plànols · interior didàctic, no constructiu</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ---------- Renderer / escena ----------
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels hidden'; // per defecte, sense etiquetes
+container.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(35, 1, 5, 1500);
+const HOME_POS = new THREE.Vector3(-390, 460, 490);
+const HOME_TARGET = new THREE.Vector3(0, 28, 0);
+camera.position.copy(HOME_POS);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.copy(HOME_TARGET);
+controls.minDistance = 180;
+controls.maxDistance = 1300;
+controls.autoRotateSpeed = 1.2;
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(-180, 420, 180);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -240, right: 240, top: 240, bottom: -240, near: 10, far: 900 });
+sun.shadow.bias = -0.0001;
+sun.shadow.normalBias = 0.25;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c0cc, 0.9));
+const fill = new THREE.DirectionalLight(0xffffff, 0.8);
+fill.position.set(-120, 40, 120);
+scene.add(fill);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1800, 1800), new THREE.ShadowMaterial({ opacity: 0.14 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- Texturas generadas ----------
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+// ---------- Materiales ----------
+// Rendimiento — solo se procesan polígonos visibles:
+//  · back-face culling: FrontSide en todos los sólidos (las caras traseras se descartan en la GPU)
+//  · frustum culling: activo por defecto en cada malla (lo que queda fuera de cámara no se dibuja)
+//  · oclusión: piezas interiores (líneas acopladas) ocultas mientras la cavidad está cerrada; relleno de sección solo en modo corte
+const DS = THREE.FrontSide; // sólidos cerrados: una sola cara (el interior se pinta como sección en modo corte)
+const MAT = {
+  cast:    new THREE.MeshPhysicalMaterial({ color: 0xc9cdd2, metalness: 0.55, roughness: 0.55, side: DS }),
+  steel:   new THREE.MeshPhysicalMaterial({ color: 0xe6e8eb, metalness: 0.75, roughness: 0.3, side: DS }),
+  silver:  new THREE.MeshPhysicalMaterial({ color: 0xe2e5ea, metalness: 0.9, roughness: 0.22, side: DS }),
+  ptfe:    new THREE.MeshPhysicalMaterial({ color: 0xeeeeea, metalness: 0, roughness: 0.5, side: DS }),
+  plastic: new THREE.MeshPhysicalMaterial({ color: 0xbfc3c6, metalness: 0, roughness: 0.62, side: DS }),
+  slot:    new THREE.MeshBasicMaterial({ color: 0x23262a, side: DS }),
+};
+
+// ---------- Utilidades de geometría ----------
+// Cierra el perfil para que toda pieza de revolución sea un sólido cerrado (perfil en sentido antihorario = normales hacia fuera)
+const v2 = pts => {
+  const v = pts.map(([r, y]) => new THREE.Vector2(r, y));
+  if (!v[0].equals(v[v.length - 1])) v.push(v[0].clone());
+  return v;
+};
+function orient(g, axis) {
+  if (axis === 'x+') g.rotateZ(-Math.PI / 2);      // eje local +Y -> +X mundo
+  else if (axis === 'x-') g.rotateZ(Math.PI / 2);  // eje local +Y -> -X mundo
+  else if (axis === 'z+') g.rotateX(Math.PI / 2);  // eje local +Y -> +Z mundo
+  else if (axis === 'z-') g.rotateX(-Math.PI / 2); // eje local +Y -> -Z mundo
+  return g;
+}
+function lathe(pts, axis = 'y', segs = 96) {
+  return orient(new THREE.LatheGeometry(v2(pts), segs), axis);
+}
+function hexLathe(pts, axis = 'y') {
+  let g = new THREE.LatheGeometry(v2(pts), 6, Math.PI / 6).toNonIndexed();
+  g.computeVertexNormals();
+  return orient(g, axis);
+}
+// Perfil de rosca (diente de sierra) entre y0 e y1
+function threadPts(r, depth, pitch, y0, y1, rIn) {
+  const pts = [[rIn, y0], [r - depth, y0]];
+  for (let y = y0; y < y1 - pitch * 0.5; y += pitch) pts.push([r, y + pitch * 0.5], [r - depth, y + pitch]);
+  pts.push([r - depth, y1], [rIn, y1]);
+  return pts;
+}
+function shapeFrom(pts) {
+  const s = new THREE.Shape();
+  pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+  return s;
+}
+function circlePath(cx, cy, r) {
+  const p = new THREE.Path();
+  p.absarc(cx, cy, r, 0, Math.PI * 2, true);
+  return p;
+}
+
+
+const parts = {};
+const model = new THREE.Group();
+scene.add(model);
+function part(key, info) {
+  const group = new THREE.Group();
+  group.userData.key = key;
+  model.add(group);
+  parts[key] = { ...info, group, explode: new THREE.Vector3(...(info.explode || [0, 0, 0])) };
+  return group;
+}
+function add(group, geometry, material, position = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(geometry, material.clone());
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+function roundedShape(width, depth, radius = 2) {
+  const shape = new THREE.Shape();
+  const halfWidth = width / 2, halfDepth = depth / 2;
+  shape.moveTo(-halfWidth + radius, -halfDepth);
+  shape.lineTo(halfWidth - radius, -halfDepth);
+  shape.quadraticCurveTo(halfWidth, -halfDepth, halfWidth, -halfDepth + radius);
+  shape.lineTo(halfWidth, halfDepth - radius);
+  shape.quadraticCurveTo(halfWidth, halfDepth, halfWidth - radius, halfDepth);
+  shape.lineTo(-halfWidth + radius, halfDepth);
+  shape.quadraticCurveTo(-halfWidth, halfDepth, -halfWidth, halfDepth - radius);
+  shape.lineTo(-halfWidth, -halfDepth + radius);
+  shape.quadraticCurveTo(-halfWidth, -halfDepth, -halfWidth + radius, -halfDepth);
+  return shape;
+}
+function plate(shape, thickness, bevel = 0) {
+  return new THREE.ExtrudeGeometry(shape, {
+    depth: thickness, bevelEnabled: bevel > 0,
+    bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 20,
+  }).rotateX(-Math.PI / 2);
+}
+function topPrint(group, width, depth, position, draw) {
+  const texture = canvasTex(1024, 1024, draw);
+  const mesh = add(group, new THREE.PlaneGeometry(width, depth).rotateX(-Math.PI / 2),
+    new THREE.MeshStandardMaterial({ map: texture, roughness: 0.72, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 }), position);
+  mesh.castShadow = false;
+}
+function rod(group, start, end, radius, material) {
+  const from = new THREE.Vector3(...start), to = new THREE.Vector3(...end);
+  const delta = to.clone().sub(from);
+  const mesh = add(group, new THREE.CylinderGeometry(radius, radius, delta.length(), 20), material, from.clone().add(to).multiplyScalar(0.5).toArray());
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+}
+const BX = 99.5, BZ = 99.5, BASE_Y = 18.25, WALL_TOP = 58.25;
+const LID_TOP = 66.25, PORT_Y = 40, CUT_Y = 43;
+const screwPositions = [];
+for (const edge of [-96, 96]) {
+  for (const along of [-96, -45.5, 0, 45.5, 96]) screwPositions.push([along, edge]);
+  for (const along of [-45.5, 0, 45.5]) screwPositions.push([edge, along]);
+}
+const body = part('body', {
+  name: 'Carcassa d’alumini',
+  desc: 'Cos metàl·lic de 199 × 199 mm i 48 mm d’alçada, segons els plànols aportats. Tanca i blinda els filtres de les dues bandes. El volum amb suports arriba a 315 mm d’amplada i 66,25 mm d’alçada. Les parets i el fons interiors són aproximats.',
+  anchor: [-45, 28, 101], left: true,
+});
+add(body, plate(roundedShape(196, 196, 3), 4, 1), MAT.cast, [0, BASE_Y + 1, 0]);
+for (const direction of [-1, 1]) {
+  add(body, new THREE.BoxGeometry(187, WALL_TOP - BASE_Y - 3, 5), MAT.cast,
+    [0, (WALL_TOP + BASE_Y + 3) / 2, direction * 96.5]);
+  const wall = shapeFrom([[-BZ, BASE_Y], [BZ, BASE_Y], [BZ, WALL_TOP], [-BZ, WALL_TOP]]);
+  for (const portZ of direction > 0 ? [-62.5, 62.5] : [25.25]) wall.holes.push(circlePath(-portZ, PORT_Y, 9));
+  const wallGeometry = new THREE.ExtrudeGeometry(wall, { depth: 5, bevelEnabled: false, curveSegments: 40 });
+  wallGeometry.rotateY(Math.PI / 2);
+  add(body, wallGeometry, MAT.cast, [direction > 0 ? 94.5 : -99.5, 0, 0]);
+}
+for (const [positionX, positionZ] of [[106.5, -93], [106.5, 93], [-106.5, 5]]) {
+  const ear = roundedShape(17, 14, 6);
+  ear.holes.push(circlePath(0, 0, 4));
+  add(body, plate(ear, 5), MAT.cast, [positionX, BASE_Y, positionZ]);
+}
+const brackets = part('brackets', {
+  name: 'Suports de muntatge',
+  desc: 'Dues brides de xapa plegada eleven la carcassa i permeten fixar-la a l’estructura. Amplada total: 315 mm; distància entre eixos de fixació: 285 mm; forats de Ø 8,5 mm. Les ranures rectangulars i els plecs segueixen les vistes aportades; alguns detalls no acotats són aproximats.',
+  anchor: [-142.5, 4, 53], left: true, explode: [0, -12, 0],
+});
+for (const direction of [-1, 1]) {
+  const foot = roundedShape(30, 122, 6);
+  for (const positionZ of [-51, -32, 32, 51]) foot.holes.push(circlePath(0, positionZ, 4.25));
+  for (const positionZ of [-17.5, 17.5]) {
+    const slot = shapeFrom([[-7.5, positionZ - 3.5], [7.5, positionZ - 3.5], [7.5, positionZ + 3.5], [-7.5, positionZ + 3.5]]);
+    foot.holes.push(slot);
+  }
+  add(brackets, plate(foot, 2), MAT.steel, [direction * 142.5, 0.5, 0]);
+  for (const positionZ of [-32.5, 32.5]) {
+    const bend = shapeFrom([[direction * 127.5, 0.5], [direction * 116, 0.5], [direction * 105, 16.25],
+      [direction * 86.5, 16.25], [direction * 86.5, 18.25], [direction * 106, 18.25],
+      [direction * 117, 2.5], [direction * 127.5, 2.5]]);
+    add(brackets, new THREE.ExtrudeGeometry(bend, { depth: 22, bevelEnabled: false }), MAT.steel, [0, 0, positionZ - 11]);
+    add(brackets, lathe([[0, -2], [5.5, -2], [5.5, 0], [3, 0], [3, 6], [0, 6]], 'y', 32), MAT.steel,
+      [direction * 86.5, 16.1, positionZ]);
+  }
+}
+const lid = part('lid', {
+  name: 'Tapa i identificació',
+  desc: 'Tapa quadrada amb cargols al perímetre, etiqueta KATHREIN 78210620 i identificació dels tres ports. La numeració i la disposició dels connectors segueixen el plànol de la vista superior; la fotografia mostra l’equip en una orientació diferent.',
+  anchor: [-48, LID_TOP + 1, -55], left: true, explode: [0, 82, 0], aboveCut: true,
+});
+const lidShape = new THREE.Shape();
+lidShape.moveTo(-88, -99);
+for (const position of [-45.5, 0, 45.5]) {
+  lidShape.lineTo(position - 8, -99);
+  lidShape.absarc(position, -99, 8, Math.PI, 0, true);
+}
+lidShape.lineTo(88, -99); lidShape.quadraticCurveTo(88, -88, 99, -88);
+for (const position of [-45.5, 0, 45.5]) {
+  lidShape.lineTo(99, position - 8);
+  lidShape.absarc(99, position, 8, -Math.PI / 2, -3 * Math.PI / 2, true);
+}
+lidShape.lineTo(99, 88); lidShape.quadraticCurveTo(88, 88, 88, 99);
+for (const position of [45.5, 0, -45.5]) {
+  lidShape.lineTo(position + 8, 99);
+  lidShape.absarc(position, 99, 8, 0, -Math.PI, true);
+}
+lidShape.lineTo(-88, 99); lidShape.quadraticCurveTo(-88, 88, -99, 88);
+for (const position of [45.5, 0, -45.5]) {
+  lidShape.lineTo(-99, position + 8);
+  lidShape.absarc(-99, position, 8, Math.PI / 2, -Math.PI / 2, true);
+}
+lidShape.lineTo(-99, -88); lidShape.quadraticCurveTo(-88, -88, -88, -99);
+lidShape.closePath();
+add(lid, plate(lidShape, 6.8, 0.6), MAT.cast, [0, WALL_TOP + 0.6, 0]);
+for (const [positionX, positionZ] of screwPositions) {
+  add(lid, lathe([[2, 0], [6.6, 0], [6.6, 1.4], [2, 1.4]], 'y', 32), MAT.cast, [positionX, WALL_TOP + 0.3, positionZ]);
+}
+topPrint(lid, 64, 97, [0, LID_TOP + 0.05, 0], (context, width, height) => {
+  context.fillStyle = '#f9f9f6';
+  context.beginPath(); context.roundRect(5, 5, width - 10, height - 10, 28); context.fill();
+  context.strokeStyle = '#b1b3b4'; context.lineWidth = 5; context.stroke();
+  context.fillStyle = '#141414';
+  context.font = 'bold 112px Arial'; context.fillText('KATHREIN', 60, 160);
+  context.font = '42px Arial'; context.fillText('Type no.', 60, 270);
+  context.font = 'bold 72px Arial'; context.fillText('78210620', 60, 365);
+  context.font = '42px Arial'; context.fillText('Diplexer', 60, 460);
+  context.font = '35px Arial'; context.fillText('GSM 1800 / UMTS', 60, 535);
+  context.fillText('1710–1880 / 1920–2170 MHz', 60, 600);
+  for (let bar = 0; bar < 95; bar++) {
+    if ((bar * 17 + 3) % 7 < 4) context.fillRect(65 + bar * 9, 680, 3 + bar % 4, 110);
+  }
+  context.font = '26px Arial'; context.fillText('Identificació recreada · no és una etiqueta original', 60, 915);
+});
+const PORTS = [
+  { key: 'p1', direction: 1, positionZ: 62.5, name: 'Port 1 · GSM 1800', band: '1710–1880 MHz',
+    desc: 'Branca de 1710–1880 MHz (GSM 1800), segons la serigrafia del plànol. En combinació, s’uneix amb la branca UMTS al port comú; en separació, rep aquesta banda des del port comú. No és una sortida de −3 dB: el diplexor selecciona per freqüència.' },
+  { key: 'p2', direction: 1, positionZ: -62.5, name: 'Port 2 · UMTS', band: '1920–2170 MHz',
+    desc: 'Branca de 1920–2170 MHz (UMTS), segons el plànol. El seu filtre deixa passar aquesta banda i atenua la de GSM 1800. Les dues branques comparteixen el port 3, però no reparteixen el senyal a parts iguals com un acoblador híbrid.' },
+  { key: 'p3', direction: -1, positionZ: 25.25, name: 'Port 3 · comú', band: '1710–1880 / 1920–2170 MHz',
+    desc: 'Port comú a les dues bandes. Pot connectar-se a una línia coaxial compartida: combina els senyals dels ports 1 i 2 o els separa en sentit invers. La posició és asimètrica, a 74,25 mm del cantell de referència del plànol.' },
+];
+for (const port of PORTS) {
+  const axis = port.direction > 0 ? 'x+' : 'x-';
+  const origin = [port.direction * BX, PORT_Y, port.positionZ];
+  const connector = part(port.key, { name: port.name, desc: port.desc,
+    anchor: [port.direction * 133, PORT_Y + 12, port.positionZ], left: port.direction < 0,
+    explode: [port.direction * 25, 0, 0] });
+  const flange = roundedShape(33, 33, 2);
+  flange.holes.push(circlePath(0, 0, 8.5));
+  for (const positionY of [-12, 12]) for (const positionZ of [-12, 12]) flange.holes.push(circlePath(positionZ, positionY, 1.8));
+  const flangeGeometry = new THREE.ExtrudeGeometry(flange, { depth: 3.5, bevelEnabled: false, curveSegments: 24 });
+  flangeGeometry.rotateY(port.direction * Math.PI / 2);
+  add(connector, flangeGeometry, MAT.steel, origin);
+  add(connector, lathe([[8.1, 0], [12.5, 0], [12.5, 23], [8.1, 23]], axis), MAT.silver, origin);
+  add(connector, lathe(threadPts(14.5, 0.65, 1.5, 23, 29.5, 10.6), axis), MAT.steel, origin);
+  add(connector, lathe([[10.6, 29.5], [14, 29.5], [14, 30.6], [10.6, 30.6]], axis), MAT.silver, origin);
+  add(connector, lathe([[3.6, 15], [8.2, 15], [8.2, 17], [3.6, 17]], axis), MAT.ptfe, origin);
+  add(connector, lathe([[6.3, 17], [8.2, 17], [8.2, 26.8], [7.3, 26.8], [6.3, 25.8]], axis), MAT.silver, origin);
+  add(connector, lathe([[2, 8], [3.5, 8], [3.5, 27.5], [2, 27.5]], axis), MAT.silver, origin);
+  for (const positionY of [-12, 12]) for (const positionZ of [-12, 12]) {
+    add(connector, lathe([[0, 3.5], [3, 3.5], [3, 5.3], [0, 5.3]], axis, 20), MAT.steel,
+      [port.direction * BX, PORT_Y + positionY, port.positionZ + positionZ]);
+  }
+  topPrint(lid, 21, 49, [port.direction * 79, LID_TOP + 0.06, port.positionZ], (context, width, height) => {
+    context.translate(width / 2, height / 2);
+    context.rotate(port.direction > 0 ? Math.PI / 2 : -Math.PI / 2);
+    context.fillStyle = '#393b3d'; context.textAlign = 'center';
+    context.font = 'bold 110px Arial'; context.fillText('Port ' + port.key.slice(1), 0, -100);
+    context.font = 'bold 84px Arial'; context.fillText(port.key === 'p1' ? 'GSM 1800' : port.key === 'p2' ? 'UMTS' : 'COMMON', 0, 35);
+    context.font = '44px Arial'; context.fillText(port.band, 0, 145);
+  });
+}
+const screws = part('screws', {
+  name: 'Cargols perimetrals (×16)',
+  desc: 'Setze cargols repartits pel contorn de la tapa, amb els rebaixos visibles al plànol. Mantenen la tapa fixada i el tancament metàl·lic de la cavitat. En l’especejament se separen de la tapa per mostrar el muntatge.',
+  anchor: [48, LID_TOP + 1, 96], explode: [0, 112, 0], aboveCut: true,
+});
+for (const [positionX, positionZ] of screwPositions) {
+  add(screws, lathe([[0, -8], [1.8, -8], [1.8, 0], [3.4, 0], [3.4, 1.3], [2.7, 2], [0, 2]], 'y', 24), MAT.steel,
+    [positionX, WALL_TOP + 1.8, positionZ]);
+  for (const angle of [0, Math.PI / 3, 2 * Math.PI / 3]) {
+    const recess = add(screws, new THREE.BoxGeometry(3.4, 0.12, 0.65), MAT.slot, [positionX, WALL_TOP + 3.86, positionZ]);
+    recess.rotation.y = angle;
+  }
+}
+const aux = part('aux', {
+  name: 'Racord auxiliar',
+  desc: 'Petit racord hexagonal representat al lateral del plànol. La seva funció no queda identificada a les referències aportades; no s’atribueix a cap port de senyal ni a una presa de terra confirmada.',
+  anchor: [-112, PORT_Y + 9, -78], left: true, explode: [-14, 0, 0],
+});
+add(aux, hexLathe([[0, 0], [8, 0], [8, 7], [5.5, 7], [5.5, 15], [0, 15]], 'x-'), MAT.steel, [-BX, PORT_Y, -78]);
+add(aux, lathe(threadPts(4, 0.4, 1, 15, 21, 0), 'x-', 32), MAT.steel, [-BX, PORT_Y, -78]);
+const partition = part('partition', {
+  name: 'Separació de les cavitats',
+  desc: 'Separació metàl·lica esquemàtica entre les dues branques filtrants. Ajuda a visualitzar que cada banda té el seu propi filtre. No es disposa d’un plànol de l’interior: el nombre de cavitats, les dimensions i la disposició real no es poden deduir de les vistes exteriors.',
+  anchor: [15, 38, 0], hideUnlessInside: true,
+});
+add(partition, new THREE.BoxGeometry(140, 16, 3), MAT.cast, [20, 30, 0]);
+const branchMaterials = [
+  new THREE.MeshPhysicalMaterial({ color: 0xc99b45, metalness: 0.72, roughness: 0.3 }),
+  new THREE.MeshPhysicalMaterial({ color: 0x6f9eb6, metalness: 0.65, roughness: 0.3 }),
+];
+for (const [index, direction] of [1, -1].entries()) {
+  const filter = part('filter' + (index + 1), {
+    name: index === 0 ? 'Filtre GSM 1800 · esquemàtic' : 'Filtre UMTS · esquemàtic',
+    desc: 'Representació didàctica d’un filtre de cavitats amb ressonadors. Deixa passar la seva banda i rebutja l’altra abans de la unió comuna. Els quatre ressonadors, els acoblaments i els colors són il·lustratius: no reprodueixen la construcció interna documentada del 78210620.',
+    anchor: [0, 40, direction * 49], hideUnlessInside: true,
+  });
+  for (const positionX of [-51, -17, 17, 51]) {
+    add(filter, lathe([[0, 0], [7, 0], [7, 18], [10, 18], [10, 20], [0, 20]], 'y', 40), branchMaterials[index],
+      [positionX, BASE_Y + 5, direction * 46]);
+    add(filter, lathe([[0, 0], [3, 0], [3, 2], [0, 2]], 'y', 24), MAT.ptfe,
+      [positionX, BASE_Y + 3, direction * 46]);
+  }
+  rod(filter, [94, PORT_Y, direction * 62.5], [72, PORT_Y, direction * 46], 1.6, branchMaterials[index]);
+  rod(filter, [-72, PORT_Y, direction * 46], [-79, PORT_Y, 25.25], 1.6, branchMaterials[index]);
+  rod(filter, [-79, PORT_Y, 25.25], [-96, PORT_Y, 25.25], 1.6, MAT.silver);
+}
+
+// ---------- Etiquetas ----------
+const labelEls = {};
+for (const [key, p] of Object.entries(parts)) {
+  const el = document.createElement('div');
+  el.className = 'lbl' + (p.left ? ' left' : '');
+  el.innerHTML = `<span class="dot"></span><span class="txt">${p.name}</span>`;
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); select(key); });
+  const obj = new CSS2DObject(el);
+  obj.position.set(...p.anchor);
+  p.group.add(obj);
+  p.label = obj;
+  labelEls[key] = el;
+}
+
+// ---------- Estado e interacción ----------
+const state = { labels: false, explode: false, cut: false, t: 0, selected: null };
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), CUT_Y); // conserva y ≤ CUT_Y: se ve el interior desde arriba
+const allMeshes = [];
+model.traverse(o => { if (o.isMesh) { allMeshes.push(o); let p = o.parent; while (p && !p.userData.key) p = p.parent; o.userData.key = p?.userData.key; } });
+
+// Relleno de sección para el modo corte: las caras traseras de cada sólido se pintan en color plano
+for (const m of allMeshes) {
+  if (m.material.transparent || !m.material.color) continue;
+  const mat = new THREE.MeshBasicMaterial({ color: m.material.color.clone().multiplyScalar(0.6), side: THREE.BackSide, clippingPlanes: [cutPlane] });
+  const sec = new THREE.Mesh(m.geometry, mat);
+  sec.visible = false;
+  sec.userData.key = m.userData.key;
+  m.add(sec);
+  m.userData.section = sec;
+}
+
+const infoEl = document.getElementById('info');
+const DEFAULT_INFO = infoEl.innerHTML;
+let helpDismissed = false; // un clic sobre el panell l’amaga; l’ajuda inicial ja no torna a sortir
+
+function select(key) {
+  state.selected = state.selected === key ? null : key;
+  for (const m of allMeshes) {
+    const on = state.selected && m.userData.key === state.selected;
+    if (m.material.emissive) { m.material.emissive.set(on ? 0x1f4fbf : 0x000000); m.material.emissiveIntensity = on ? 0.35 : 0; }
+  }
+  for (const [k, el] of Object.entries(labelEls)) el.classList.toggle('sel', k === state.selected);
+  const p = parts[state.selected];
+  infoEl.innerHTML = p ? `<h2>${p.name}</h2><p>${p.desc}</p>` : DEFAULT_INFO;
+  infoEl.classList.toggle('hidden', !p && helpDismissed);
+}
+infoEl.addEventListener('click', () => {
+  helpDismissed = true;
+  if (state.selected) select(state.selected); // tanca la descripció i desselecciona la peça
+  infoEl.classList.add('hidden');
+});
+
+const isShown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(allMeshes, false).find(h => isShown(h.object) && (!state.cut || h.point.y <= CUT_Y + 0.01));
+  if (hit) select(hit.object.userData.key);
+  else if (state.selected) select(state.selected);
+});
+
+const $ = id => document.getElementById(id);
+$('bLabels').onclick = () => { state.labels = !state.labels; $('bLabels').classList.toggle('on', state.labels); labelRenderer.domElement.classList.toggle('hidden', !state.labels); };
+$('bExplode').onclick = () => { state.explode = !state.explode; $('bExplode').classList.toggle('on', state.explode); };
+$('bCut').onclick = () => {
+  state.cut = !state.cut;
+  $('bCut').classList.toggle('on', state.cut);
+  for (const m of allMeshes) {
+    m.material.clippingPlanes = state.cut ? [cutPlane] : null;
+    m.material.needsUpdate = true;
+    if (m.userData.section) m.userData.section.visible = state.cut;
+  }
+};
+$('bRotate').onclick = () => { controls.autoRotate = !controls.autoRotate; $('bRotate').classList.toggle('on', controls.autoRotate); };
+$('bReset').onclick = () => { camera.position.copy(HOME_POS); controls.target.copy(HOME_TARGET); controls.update(); };
+
+const q = new URLSearchParams(location.search);
+if (q.has('especejament') || q.has('despiece')) $('bExplode').click();
+if (q.has('tall') || q.has('corte')) $('bCut').click();
+if (q.has('etiquetes')) $('bLabels').click();
+
+// ---------- Bucle ----------
+function resize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  // En contenedores estrechos (incrustado en apuntes) alejamos la cámara para que quepa
+  camera.fov = w / h < 1 ? 35 / Math.max(w / h, 0.55) : 35;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(container);
+resize();
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  state.t += ((state.explode ? 1 : 0) - state.t) * (1 - Math.exp(-dt * 6));
+  const ease = state.t * state.t * (3 - 2 * state.t);
+  const interiorVisible = state.cut || state.t > 0.32;
+  for (const p of Object.values(parts)) {
+    p.group.position.copy(p.explode).multiplyScalar(ease);
+    if (p.hideUnlessInside) {
+      p.group.visible = interiorVisible; // oclusión: dentro de la cavidad cerrada no se ven, no se procesan
+      p.label.visible = state.cut || state.t > 0.6;
+    }
+    if (p.aboveCut) p.group.visible = p.label.visible = !state.cut; // por encima del plano de corte: recortadas del todo, no se procesan
+    // (CSS2DRenderer no hereda la visibilidad del grupo: la etiqueta se oculta explícitamente)
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

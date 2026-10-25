@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagrames de radiació d’antenes — Model 3D comparatiu</title>
+<style>
+  :root { --ink:#1b2430; --muted:#5b6675; --accent:#1f4fbf; --panel:rgba(255,255,255,.86); --h:#1b2430; --v:#7a2a9a; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); }
+  body { background:radial-gradient(ellipse at 50% 35%, #ffffff 0%, #eef1f5 55%, #dde2e9 100%); overflow:hidden; }
+  #app { position:fixed; inset:0; }
+  #app canvas { display:block; }
+  .labels { position:absolute; inset:0; pointer-events:none; }
+  .card { background:var(--panel); backdrop-filter:blur(8px); border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+  .side { position:absolute; top:14px; left:14px; width:318px; max-height:calc(100% - 28px); overflow:auto; padding:10px 12px; pointer-events:auto; }
+  .side h1 { font-size:15px; margin:0 0 2px; letter-spacing:.2px; }
+  .side .sub { font-size:12px; margin:0 0 8px; color:var(--muted); }
+  .side h3 { font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:9px 0 5px; font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .chip { font:inherit; font-size:12px; border:1px solid #c9d0d9; background:#fff; color:var(--ink); padding:5px 9px; border-radius:7px; cursor:pointer; }
+  .chip:hover { border-color:var(--accent); }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .chips.subs { margin-top:6px; padding:6px; background:rgba(31,79,191,.06); border-radius:8px; }
+  .chips.subs:empty { display:none; }
+  .chips.subs .chip { font-size:11.5px; padding:4px 8px; }
+  .row { display:flex; gap:8px; align-items:center; font-size:12px; margin-top:6px; }
+  .row label { color:var(--muted); width:86px; flex:none; }
+  .row select { font:inherit; font-size:12px; flex:1; min-width:0; padding:4px 6px; border:1px solid #c9d0d9; border-radius:7px; background:#fff; color:var(--ink); }
+  .hintline { font-size:11px; color:var(--muted); margin:5px 0 0; line-height:1.4; }
+  table.par { width:100%; border-collapse:collapse; font-size:12px; margin-top:2px; }
+  table.par td { padding:2.5px 0; border-bottom:1px solid rgba(0,0,0,.06); }
+  table.par td:last-child { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+  table.par tr:last-child td { border-bottom:none; }
+  table.par .cmp { color:#7c8794; font-weight:500; padding-left:6px; }
+  .btns { position:absolute; top:14px; right:14px; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; max-width:calc(100% - 360px); pointer-events:auto; }
+  .btns button { font:inherit; font-size:12px; border:1px solid #c9d0d9; background:var(--panel); backdrop-filter:blur(8px); color:var(--ink); padding:7px 11px; border-radius:8px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .btns button:hover { border-color:var(--accent); }
+  .btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .polar { position:absolute; top:58px; right:14px; padding:8px 10px 6px; display:flex; gap:10px; }
+  .polar.hidden { display:none; }
+  .polar figure { margin:0; text-align:center; }
+  .polar figcaption { font-size:11px; font-weight:600; margin-bottom:2px; }
+  .polar canvas { width:172px; height:172px; display:block; }
+  .polar .leg { font-size:10.5px; color:var(--muted); margin-top:2px; }
+  .info { position:absolute; left:14px; bottom:14px; max-width:min(420px, calc(100% - 300px)); padding:12px 14px; font-size:13px; line-height:1.45; cursor:pointer; }
+  .info.hidden { display:none; }
+  .info h2 { font-size:14px; margin:0 0 4px; color:var(--accent); }
+  .info p { margin:0; }
+  .info .hint { color:var(--muted); font-size:12px; }
+  .lbl { pointer-events:auto; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--ink); white-space:nowrap; transform:translateY(-50%); }
+  .lbl .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px rgba(31,79,191,.22); flex:none; }
+  .lbl .txt { background:rgba(255,255,255,.92); border:1px solid #d3d9e1; padding:3px 7px; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .lbl.sel .txt { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .lbl.left { flex-direction:row-reverse; transform:translate(-100%,-50%); }
+  .labels.hidden .lbl { display:none !important; }
+  .axl { font-size:13px; font-weight:700; font-style:italic; font-family:"Times New Roman",Times,serif; text-shadow:0 0 3px #fff, 0 0 3px #fff; pointer-events:none; }
+  .axl.small { font-size:11px; font-style:normal; font-weight:600; font-family:inherit; color:var(--muted); }
+  .readout { position:absolute; right:14px; bottom:14px; width:270px; padding:10px 12px; font-size:12px; line-height:1.5; pointer-events:none; }
+  .readout b { color:var(--accent); }
+  .readout .c2 { display:none; color:#5b6675; }
+  .readout .c2 b { color:#5b6675; }
+  .readout.cmp .c2 { display:block; }
+  .bar { position:relative; height:10px; border-radius:3px; margin:8px 0 2px; }
+  .ticks { position:relative; height:14px; font-size:10px; color:var(--muted); }
+  .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+  .ticks span:first-child { transform:none; }
+  .ticks span:last-child { transform:translateX(-100%); }
+  .mark { position:absolute; top:-3px; width:2px; height:16px; background:#1b2430; transform:translateX(-50%); }
+  .mark.m2 { background:#8a94a1; display:none; }
+  .readout.cmp .mark.m2 { display:block; }
+  .readout .cap { font-size:10.5px; color:var(--muted); }
+  @media(max-width:860px) {
+    .side { width:262px; padding:8px 10px; } .side h1 { font-size:13px; } .side .sub { font-size:10.5px; }
+    .chip { font-size:11px; padding:4px 7px; } .btns { max-width:calc(100% - 290px); } .btns button { padding:6px 8px; font-size:11px; }
+    .polar canvas { width:130px; height:130px; } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
+    .readout { width:240px; }
+  }
+  @media(max-width:600px) {
+    .side { width:calc(100% - 28px); max-height:46%; } .btns { top:auto; bottom:118px; right:14px; max-width:calc(100% - 28px); }
+    .polar { top:auto; bottom:160px; } .readout { left:14px; width:auto; } .info { bottom:160px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="side card">
+  <h1>Diagrames de radiació d’antenes</h1>
+  <p class="sub">Model 3D comparatiu · espai lliure · camp llunyà</p>
+  <h3>Antena</h3>
+  <div class="chips" id="families"></div>
+  <div class="chips subs" id="variants"></div>
+  <div class="row"><label for="sCompare">Compara amb</label><select id="sCompare"></select></div>
+  <div class="row"><label for="sScale">Escala radial</label><select id="sScale">
+    <option value="dbi">Guany absolut (dBi)</option>
+    <option value="db">Relativa (dB)</option>
+    <option value="lin">Relativa lineal (G/Gmàx)</option>
+  </select></div>
+  <p class="hintline" id="scaleHint"></p>
+  <h3>Paràmetres</h3>
+  <table class="par" id="params"></table>
+</div>
+<div class="btns">
+  <button id="bLabels">Etiquetes</button>
+  <button id="bPolar">Talls 2D</button>
+  <button id="bAntenna">Mostra l’antena</button>
+  <button id="bCut">Tall</button>
+  <button id="bRotate">Girar</button>
+  <button id="bReset">Reinicia la vista</button>
+</div>
+<div class="polar card" id="polar">
+  <figure><figcaption style="color:var(--h)">Pla horitzontal (xy)</figcaption><canvas id="cH"></canvas><div class="leg">vista superior · θ = 90°</div></figure>
+  <figure><figcaption style="color:var(--v)">Pla vertical (xz)</figcaption><canvas id="cV"></canvas><div class="leg">vista lateral · φ = 0°/180°</div></figure>
+</div>
+<div class="info card" id="info">
+  <h2>Model interactiu</h2>
+  <p class="hint">Tria una antena al panell de l’esquerra. Arrossega per girar · roda per fer zoom · clic dret per desplaçar. Passa el cursor pel diagrama per llegir el guany en cada direcció (θ, φ). «Compara amb» superposa un segon diagrama translúcid a la mateixa escala. Fes clic en un element o etiqueta per veure’n l’explicació.</p>
+</div>
+<div class="readout card" id="readout">
+  <div>Direcció: <b id="rDir">—</b></div>
+  <div><span id="rName1">—</span>: <b id="rG1">—</b></div>
+  <div class="c2"><span id="rName2">—</span>: <b id="rG2">—</b></div>
+  <div class="bar" id="bar"><div class="mark m2" id="m2"></div><div class="mark" id="m1"></div></div>
+  <div class="ticks" id="ticks"></div>
+  <div class="cap">Escala de colors: guany en dBi</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// ===== ANTENNA-PHYSICS-START =====
+const K = 2 * Math.PI; // nombre d'ona amb λ = 1
+const D2R = Math.PI / 180;
+function besselJ0(x) {
+  const ax = Math.abs(x);
+  if (ax < 8) {
+    const y = x * x;
+    return (57568490574.0 + y * (-13362590354.0 + y * (651619640.7 + y * (-11214424.18 + y * (77392.33017 + y * -184.9052456))))) /
+      (57568490411.0 + y * (1029532985.0 + y * (9494680.718 + y * (59272.64853 + y * (267.8532712 + y)))));
+  }
+  const z = 8 / ax, y = z * z, xx = ax - 0.785398164;
+  const p = 1 + y * (-0.1098628627e-2 + y * (0.2734510407e-4 + y * (-0.2073370639e-5 + y * 0.2093887211e-6)));
+  const q = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5 + y * (0.7621095161e-6 - y * 0.934935152e-7)));
+  return Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * p - z * Math.sin(xx) * q);
+}
+function besselJ1(x) {
+  const ax = Math.abs(x);
+  if (ax < 8) {
+    const y = x * x;
+    return x * (72362614232.0 + y * (-7895059235.0 + y * (242396853.1 + y * (-2972611.439 + y * (15704.48260 + y * -30.16036606))))) /
+      (144725228442.0 + y * (2300535178.0 + y * (18583304.74 + y * (99447.43394 + y * (376.9991397 + y)))));
+  }
+  const z = 8 / ax, y = z * z, xx = ax - 2.356194491;
+  const p = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * -0.240337019e-6)));
+  const q = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6)));
+  const r = Math.sqrt(0.636619772 / ax) * (Math.cos(xx) * p - z * Math.sin(xx) * q);
+  return x < 0 ? -r : r;
+}
+// Λ1(u) = 2 J1(u)/u (obertura uniforme) i Λ2(u) = 8 J2(u)/u² (distribució parabòlica 1 − ρ²)
+const lam1 = u => Math.abs(u) < 1e-4 ? 1 - u * u / 8 : 2 * besselJ1(u) / u;
+const lam2 = u => Math.abs(u) < 0.5 ? 1 - u * u / 12 + u ** 4 / 384 : 8 * (2 * besselJ1(u) / u - besselJ0(u)) / (u * u);
+const sinc = u => Math.abs(u) < 1e-6 ? 1 : Math.sin(u) / u;
+const db = g => 10 * Math.log10(Math.max(g, 1e-30));
+const lin = d => 10 ** (d / 10);
+
+// Dipol λ/2 vertical (eix z)
+const dipoleF = z => { const s2 = 1 - z * z; if (s2 < 1e-10) return 0; const c = Math.cos(Math.PI / 2 * z); return c * c / s2; };
+
+// Yagi-Uda: elements verticals al llarg de l'eix x (boom). Corrents d'ona lenta: fase −k(1+δ)x
+function yagiF(xs, amps, delta) {
+  return (x, y, z) => {
+    let re = 0, im = 0;
+    for (let n = 0; n < xs.length; n++) { const p = K * xs[n] * (x - 1 - delta); re += amps[n] * Math.cos(p); im += amps[n] * Math.sin(p); }
+    return dipoleF(z) * (re * re + im * im);
+  };
+}
+// Agrupació vertical de N elements (columna del panell), espaiat d (λ), distribució amb lleuger tapering
+function columnF(N, d, taper) {
+  const a = Array.from({ length: N }, (_, n) => { const t = (n - (N - 1) / 2) / ((N - 1) / 2); return 1 - taper + taper * Math.cos(t * Math.PI / 2) ** 2; });
+  return z => {
+    let re = 0, im = 0;
+    for (let n = 0; n < N; n++) { const p = K * d * (n - (N - 1) / 2) * z; re += a[n] * Math.cos(p); im += a[n] * Math.sin(p); }
+    return re * re + im * im;
+  };
+}
+const azEl = (x, y, z) => [Math.atan2(y, x), Math.asin(Math.max(-1, Math.min(1, z)))];
+
+// Panell sectorial: element 3GPP (TR 36.814) + columna vertical
+const sectorCol = columnF(10, 0.81, 0.45);
+function sectorF(x, y, z) {
+  const [az, el] = azEl(x, y, z);
+  const aE = Math.min(12 * (az / (90 * D2R)) ** 2 + 12 * (el / (70 * D2R)) ** 2, 30);
+  return Math.max(lin(-aE) * sectorCol(z), lin(-32) * sectorCol(0) * 0.6 * (0.5 + 0.5 * Math.cos(az * 3) ** 2));
+}
+// Bilobular (bidireccional): dos lòbuls oposats (φ = 0° i 180°), columna vertical més curta
+const biCol = columnF(5, 0.8, 0.3);
+function biF(x, y, z) {
+  const [az, el] = azEl(x, y, z);
+  const azm = Math.min(Math.abs(az), Math.PI - Math.abs(az)); // angle respecte del lòbul més proper
+  const aE = Math.min(12 * (azm / (36 * D2R)) ** 2 + 12 * (el / (70 * D2R)) ** 2, 26);
+  return Math.max(lin(-aE) * biCol(z), lin(-30) * biCol(0));
+}
+// Botzina piramidal: obertura a × b (λ). Pla H (y): distribució cosinus; pla E (z): uniforme
+function hornF(a, b) {
+  return (x, y, z) => {
+    const uy = Math.PI * a * y, uz = Math.PI * b * z;
+    const den = 1 - (2 * a * y) ** 2;
+    const fh = Math.abs(den) < 1e-6 ? Math.PI / 4 : Math.cos(uy) / den;
+    const fe = sinc(uz);
+    const ob = (1 + x) / 2;
+    const f = (fh * fe * ob) ** 2;
+    return Math.max(f, lin(-34) * (0.6 + 0.4 * Math.cos(5 * Math.acos(x)) ** 2));
+  };
+}
+// Parabòlica: obertura circular de diàmetre Dλ (λ), il·luminació parabòlica sobre graó C (nivell de vora),
+// més l'envolupant de lòbuls llunyans de la norma (dBi): env(α) en graus
+function dishF(Dl, C, Gnom, env, alphaMin) {
+  const k0 = Math.PI * Dl, norm = C + (1 - C) / 2;
+  return alpha => {
+    const s = Math.sin(Math.min(alpha, Math.PI / 2));
+    const u = k0 * s;
+    const ap = (C * lam1(u) + (1 - C) / 2 * lam2(u)) / norm * (1 + Math.cos(alpha)) / 2;
+    const gAp = Gnom + db(ap * ap);
+    const a = alpha / D2R;
+    if (a < alphaMin) return lin(gAp);
+    // arrissat sota l'envolupant: lòbuls reals (dues vegades per lòbul fins a 20°, després més lent)
+    const w = a < 20 ? u : k0 * Math.sin(20 * D2R) + (a - 20) * D2R * 30;
+    const gFar = env(a) + db(0.12 + 0.88 * Math.sin(w) ** 2) - 1;
+    return lin(Math.max(gAp, gFar));
+  };
+}
+// ===== ANTENNA-PHYSICS-END =====
+
+// ---------- Catàleg d'antenes ----------
+// Cada antena dona un diagrama f(x, y, z) sense normalitzar (o f(α) si té simetria de revolució al voltant de +x).
+// La directivitat s'obté integrant numèricament: D(θ, φ) = 4π f / ∮ f dΩ. El guany és G = η · D,
+// amb η fixada (eff) o deduïda del guany nominal del fabricant (gain, dBi).
+const YAGI = {
+  3: { xs: [-0.2, 0, 0.2], amps: [0.8, 1, 0.75], delta: 0.3, len: [0.5, 0.47, 0.44] },
+  4: { xs: [-0.2, 0, 0.2, 0.45], amps: [0.8, 1, 0.75, 0.7], delta: 0.3, len: [0.5, 0.47, 0.44, 0.43] },
+  6: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05], amps: [0.7, 1, 0.75, 0.7, 0.65, 0.6], delta: 0.2, len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41] },
+};
+const env465 = a => a < 48 ? 32 - 25 * Math.log10(a) : -10;              // ITU-R S.465 (estació terrena)
+const envMiniLink = a => Math.max(29 - 25 * Math.log10(a), -22);        // antena d'alt rendiment amb faldó
+const YAGI_DESC = 'Dipol alimentat + reflector (darrere) + directors (davant), paral·lels sobre un boom. Els elements paràsits s’exciten per acoblament i les corrents formen una ona lenta que reforça la radiació cap als directors (radiació longitudinal o <i>end-fire</i>). Cada director afegit estreny el feix i augmenta el guany, però cada cop menys. Model: factor d’agrupació amb corrents d’ona lenta × diagrama del dipol; elements verticals (polarització vertical).';
+const ANT = {
+  isotropica: {
+    family: 'isotropica', name: 'Antena isotròpica', short: 'Isotròpica', f: () => 1, eff: 1, fb: false,
+    band: 'Teòrica (referència)', pol: '—',
+    desc: 'Font puntual ideal que radia la mateixa intensitat en totes les direccions: U = P<sub>rad</sub> / 4π. El diagrama és una esfera, D = 1 (0 dBi). No existeix físicament (el camp llunyà no pot ser tangent i uniforme en tota l’esfera), però és la referència de tots els guanys en dBi.',
+    hw: 'Font puntual ideal, sense dimensions, situada a l’origen.',
+  },
+  dipol: {
+    family: 'dipol', name: 'Dipol λ/2', short: 'Dipol λ/2', f: (x, y, z) => dipoleF(z), eff: 1, fb: false,
+    band: 'Qualsevol (L ≈ λ/2)', pol: 'Vertical',
+    desc: 'Dipol de mitja ona vertical (eix z): G(θ) = 1,64 · [cos(π/2 · cos θ) / sin θ]². És omnidireccional en el pla horitzontal i té nuls en la direcció dels braços: el diagrama és un toroide (dònut). Guany 2,15 dBi = 0 dBd; amplada de feix vertical de 78°.',
+    hw: 'Dos braços conductors alineats de longitud total ≈ λ/2, alimentats pel centre amb un cable coaxial.',
+  },
+  'yagi-3': { family: 'yagi', variant: '3 elements', name: 'Yagi-Uda de 3 elements', short: 'Yagi 3 el.', yagi: 3, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
+  'yagi-4': { family: 'yagi', variant: '4 elements', name: 'Yagi-Uda de 4 elements', short: 'Yagi 4 el.', yagi: 4, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
+  'yagi-6': { family: 'yagi', variant: '6 elements', name: 'Yagi-Uda de 6 elements', short: 'Yagi 6 el.', yagi: 6, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
+  sectorial: {
+    family: 'sectorial', name: 'Panell sectorial 90° × 7°', short: 'Sectorial', f: sectorF, gain: 17,
+    band: '1,7–2,7 GHz (mòbil / Wi-Fi)', pol: 'Vertical (o ±45°)',
+    desc: 'Panell d’estació base de telefonia mòbil o de punt d’accés Wi-Fi exterior: una columna de dipols davant d’un pla reflector, dins d’un radome. Amplada de feix de 90° en horitzontal (cobreix un sector; amb 3 o 4 panells es fan els 360°) i de 7° en vertical, per concentrar la potència cap a l’horitzó: 17 dBi. En el pla vertical es veuen els lòbuls secundaris de la columna. A la pràctica s’hi aplica una inclinació (tilt) cap avall de pocs graus. Model: element 3GPP TR 36.814 + agrupació vertical de 10 elements.',
+    hw: 'Radome d’uns 1,3 m × 0,3 m amb la columna de dipols i el reflector a dins, subjectat al pal amb dues brides; connectors a la part inferior.',
+  },
+  'parabolica-satellit': {
+    family: 'parabolica', variant: 'Satèl·lit (80 cm, Ku)', name: 'Parabòlica de satèl·lit 80 cm', short: 'Parab. satèl·lit',
+    sym: dishF(0.8 / 0.02564, 0.3, 38.3, env465, 2.7), gain: 38.3, band: 'Ku 10,7–12,75 GHz (11,7 GHz)', pol: 'Lineal H/V (LNB)',
+    desc: 'Parabòlica de recepció de TV per satèl·lit en banda Ku, de 80 cm, tipus offset (l’LNB queda fora del feix i no fa ombra). A 11,7 GHz: G ≈ 38 dBi i feix d’uns 2°, per això cal apuntar-la amb precisió (des de Catalunya, Astra 19,2° E amb una elevació d’uns 38°; aquí el feix es dibuixa horitzontal per poder comparar). Lòbuls propers calculats amb la teoria d’obertura (il·luminació parabòlica sobre graó); lòbuls llunyans segons l’envolupant de referència ITU-R S.465 (32 − 25 log φ dBi).',
+    hw: 'Reflector parabòlic de 80 cm amb el braç i l’LNB (amplificador i convertidor de baix soroll) al focus; suport al pal.',
+  },
+  'parabolica-minilink': {
+    family: 'parabolica', variant: 'Radioenllaç MINI-LINK (0,6 m, 23 GHz)', name: 'Parabòlica de radioenllaç 0,6 m (MINI-LINK)', short: 'Parab. MINI-LINK',
+    sym: dishF(0.6 / 0.01304, 0.2, 41, envMiniLink, 2), gain: 41, band: '23 GHz (radioenllaç)', pol: 'Lineal V o H',
+    desc: 'Antena de radioenllaç punt a punt tipus Ericsson MINI-LINK: parabòlica de 0,6 m a 23 GHz amb faldó (<i>shroud</i>) i radome, acoblada directament a la unitat de ràdio exterior (ODU). G ≈ 41 dBi i feix d’uns 1,5°: els dos extrems s’alineen amb visió directa. El faldó absorbent redueix molt els lòbuls laterals i posteriors (antena d’alt rendiment, F/B > 60 dB) per poder reutilitzar freqüències amb altres enllaços del mateix emplaçament.',
+    hw: 'Reflector de 0,6 m dins d’un faldó cilíndric tancat amb un radome pla; la unitat de ràdio (ODU) s’acobla al darrere i tot es fixa al pal.',
+  },
+  bilobular: {
+    family: 'bilobular', name: 'Antena bilobular (bidireccional)', short: 'Bilobular', f: biF, eff: 0.85, fb: false,
+    band: '0,7–2,7 GHz (carreteres, túnels)', pol: 'Vertical',
+    desc: 'Antena bidireccional: dos lòbuls principals oposats (φ = 0° i 180°) d’uns 36° en horitzontal i 14° en vertical, d’uns 15 dBi cadascun. Serveix per donar cobertura a carreteres, vies de tren, túnels o carrers llargs des d’un sol punt: la potència es concentra en les dues direccions de la via. Model: dos lòbuls tipus 3GPP + columna vertical de 5 elements.',
+    hw: 'Panell prim amb la columna de radiadors i sense reflector (o dos panells esquena contra esquena), subjectat al pal pel costat.',
+  },
+  botzina: {
+    family: 'botzina', name: 'Antena de botzina piramidal', short: 'Botzina', f: hornF(4, 3), eff: 0.8, beam: true,
+    band: '8,2–12,4 GHz (banda X)', pol: 'Lineal (E vertical)',
+    desc: 'Botzina piramidal: una guia d’ones que s’eixampla fins a una obertura de 4λ × 3λ (12 × 9 cm a 10 GHz). Pla H (horitzontal): il·luminació cosinus → lòbuls secundaris baixos (−23 dB). Pla E (vertical): il·luminació uniforme → lòbuls de −13 dB. No és ressonant i té molt d’ample de banda: s’utilitza com a antena patró de guany, com a alimentador de parabòliques i en mesures. G ≈ 20 dBi.',
+    hw: 'Guia d’ones rectangular (WR-90) amb brida, que s’eixampla en una botzina piramidal metàl·lica.',
+  },
+};
+for (const a of Object.values(ANT)) if (a.yagi) {
+  const y = YAGI[a.yagi];
+  a.f = yagiF(y.xs, y.amps, y.delta);
+  a.hw = `${a.yagi} elements sobre un boom de ${((y.xs.at(-1) - y.xs[0])).toFixed(2).replace('.', ',')} λ: reflector (0,50 λ), dipol plegat o partit alimentat (0,47 λ) i ${a.yagi - 2} director${a.yagi > 3 ? 's' : ''} (0,44–0,41 λ).`;
+}
+const FAMILIES = [
+  ['isotropica', 'Isotròpica'], ['dipol', 'Dipol'], ['yagi', 'Yagi-Uda'], ['sectorial', 'Panell sectorial'],
+  ['parabolica', 'Parabòlica'], ['bilobular', 'Bilobular'], ['botzina', 'Botzina'],
+];
+
+function prepare(id) {
+  const a = ANT[id];
+  if (a.ready) return a;
+  const f = a.sym ? (x, y, z) => a.sym(Math.acos(Math.max(-1, Math.min(1, x)))) : a.f;
+  let I = 0, fmax = 0;
+  if (a.sym) {
+    const N = 120000;
+    for (let i = 0; i < N; i++) { const al = (i + 0.5) * Math.PI / N; I += a.sym(al) * Math.sin(al); }
+    I *= 2 * Math.PI * Math.PI / N;
+    fmax = a.sym(0);
+  } else {
+    const N = 720, M = 720;
+    for (let i = 0; i < N; i++) {
+      const th = (i + 0.5) * Math.PI / N, st = Math.sin(th), ct = Math.cos(th);
+      for (let j = 0; j < M; j++) {
+        const ph = (j + 0.5) * 2 * Math.PI / M, v = f(st * Math.cos(ph), st * Math.sin(ph), ct);
+        I += v * st; if (v > fmax) fmax = v;
+      }
+    }
+    I *= (Math.PI / N) * (2 * Math.PI / M);
+    fmax = Math.max(fmax, f(1, 0, 0));
+  }
+  a.Dmax = 4 * Math.PI * fmax / I;
+  a.Gmax = a.gain != null ? lin(a.gain) : a.eff * a.Dmax;
+  a.eta = a.Gmax / a.Dmax;
+  const k = a.Gmax / fmax;
+  a.G = (x, y, z) => k * f(x, y, z);
+  a.hpH = hpbw(a, t => [Math.cos(t), Math.sin(t), 0]);
+  a.hpV = hpbw(a, t => [Math.cos(t), 0, Math.sin(t)]);
+  a.FB = a.fb === false ? null : db(a.G(1, 0, 0) / a.G(-1, 0, 0));
+  a.ready = true;
+  return a;
+}
+// Amplada de feix a −3 dB en un tall (t = 0 → direcció del màxim del tall)
+function hpbw(a, dir) {
+  let mn = Infinity, mx = 0;
+  for (let t = 0; t < 360; t += 0.5) { const g = a.G(...dir(t * D2R)); mn = Math.min(mn, g); mx = Math.max(mx, g); }
+  if (mn >= mx / 2) return null;
+  const g0 = a.G(...dir(0));
+  for (let t = 0, step = 0.002; t < 180; t += step) {
+    if (a.G(...dir(t * D2R)) < g0 / 2) return 2 * t;
+    if (t > 5) step = 0.02;
+  }
+  return null;
+}
+
+// ---------- Renderer / escena ----------
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels hidden'; // per defecte, sense etiquetes
+container.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// Eixos físics (x, y, z) amb z vertical → escena (X, Y, Z) = (x, z, −y). El feix principal apunta cap a +x.
+const R_MAX = 120, G_FLOOR = -30, G_TOP = 45, GROUND_Y = -150;
+const phys = (x, y, z) => new THREE.Vector3(x, z, -y);
+const dirOf = (theta, phi) => phys(Math.sin(theta) * Math.cos(phi), Math.sin(theta) * Math.sin(phi), Math.cos(theta));
+const P = (x, y, z) => phys(x, y, z).toArray();
+
+const camera = new THREE.PerspectiveCamera(35, 1, 5, 4000);
+const HOME_POS = phys(370, 275, 205);
+const HOME_TARGET = new THREE.Vector3(0, -8, 0);
+camera.position.copy(HOME_POS);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.copy(HOME_TARGET);
+controls.minDistance = 120;
+controls.maxDistance = 1800;
+controls.autoRotateSpeed = 1.2;
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(-240, 630, 210);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -330, right: 330, top: 330, bottom: -330, near: 10, far: 1500 });
+sun.shadow.bias = -0.0001;
+sun.shadow.normalBias = 0.25;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c0cc, 0.9));
+const fill = new THREE.DirectionalLight(0xffffff, 0.7);
+fill.position.set(300, 90, -270);
+scene.add(fill);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2600, 2600), new THREE.ShadowMaterial({ opacity: 0.12 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = GROUND_Y;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- Escala de colors (guany en dBi) ----------
+const STOPS = [[0, '#30123b'], [0.22, '#4686fb'], [0.42, '#1ae4b6'], [0.62, '#a2fc3c'], [0.8, '#fbb938'], [1, '#d23105']]
+  .map(([t, c]) => [t, new THREE.Color(c)]);
+const _c = new THREE.Color();
+function cmap(gdb, out = _c) {
+  const t = THREE.MathUtils.clamp((gdb - G_FLOOR) / (G_TOP - G_FLOOR), 0, 1);
+  for (let i = 1; i < STOPS.length; i++) {
+    if (t <= STOPS[i][0]) {
+      const [t0, c0] = STOPS[i - 1], [t1, c1] = STOPS[i];
+      return out.copy(c0).lerp(c1, (t - t0) / (t1 - t0));
+    }
+  }
+  return out.copy(STOPS[STOPS.length - 1][1]);
+}
+const fmt = (v, d = 1) => (Math.abs(v) < 0.5 * 10 ** -d ? 0 : v).toFixed(d).replace('.', ',').replace('-', '−');
+const fmtDb = g => g < 1e-6 ? 'nul (−∞ dBi)' : `${fmt(db(g))} dBi`;
+
+// ---------- Materials ----------
+// Rendiment — només es processen els polígons visibles:
+//  · back-face culling: FrontSide a tots els sòlids (el diagrama és una superfície tancada, normals cap enfora)
+//  · frustum culling: actiu per defecte
+//  · oclusió: l'antena física (dins del diagrama opac) només es dibuixa amb el tall o en mode «Mostra l'antena»;
+//    el farciment de secció només en mode tall
+const FS = THREE.FrontSide;
+const MAT = {
+  pattern: new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, metalness: 0, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3, side: FS }),
+  ghost:   new THREE.MeshStandardMaterial({ color: 0x8a94a1, roughness: 0.5, transparent: true, opacity: 0.26, depthWrite: false, side: FS }),
+  cutH:    new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.5, side: FS }),
+  cutV:    new THREE.MeshStandardMaterial({ color: 0x7a2a9a, roughness: 0.5, side: FS }),
+  source:  new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffc22e, emissiveIntensity: 1.2, roughness: 0.3, side: FS }),
+  metal:   new THREE.MeshStandardMaterial({ color: 0xbfc5cc, metalness: 0.85, roughness: 0.3, side: FS }),
+  alu:     new THREE.MeshStandardMaterial({ color: 0xd8dce1, metalness: 0.6, roughness: 0.35, side: FS }),
+  dark:    new THREE.MeshStandardMaterial({ color: 0x2b3038, metalness: 0.2, roughness: 0.55, side: FS }),
+  radome:  new THREE.MeshStandardMaterial({ color: 0xf1f2f4, roughness: 0.6, side: FS }),
+  feed:    new THREE.MeshStandardMaterial({ color: 0xe8a33a, roughness: 0.4, metalness: 0.1, side: FS }),
+  dir:     new THREE.MeshStandardMaterial({ color: 0x1f4fbf, roughness: 0.35, side: FS }),
+  dot2:    new THREE.MeshStandardMaterial({ color: 0x5b6675, roughness: 0.35, side: FS }),
+  ax: {
+    x: new THREE.MeshStandardMaterial({ color: 0xc8352b, roughness: 0.4, side: FS }),
+    y: new THREE.MeshStandardMaterial({ color: 0x2f9a45, roughness: 0.4, side: FS }),
+    z: new THREE.MeshStandardMaterial({ color: 0x2a5cc8, roughness: 0.4, side: FS }),
+  },
+};
+const LINE = {
+  polar: new THREE.LineBasicMaterial({ color: 0x7c8794, transparent: true, opacity: 0.55 }),
+  neg:   new THREE.LineDashedMaterial({ color: 0x7c8794, dashSize: 5, gapSize: 4 }),
+  dir:   new THREE.LineBasicMaterial({ color: 0x1f4fbf }),
+  proj:  new THREE.LineDashedMaterial({ color: 0x1f4fbf, dashSize: 4, gapSize: 3 }),
+};
+
+// ---------- Utilitats ----------
+const v2 = pts => {
+  const v = pts.map(([r, y]) => new THREE.Vector2(r, y));
+  if (!v[0].equals(v[v.length - 1])) v.push(v[0].clone());
+  return v;
+};
+const parts = {};
+const model = new THREE.Group();
+scene.add(model);
+function part(key, info) {
+  const group = new THREE.Group();
+  group.userData.key = key;
+  model.add(group);
+  parts[key] = { ...info, group };
+  return group;
+}
+function add(group, geometry, material, position = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(geometry, material.clone());
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+function line(group, points, material) {
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material.clone());
+  if (material.isLineDashedMaterial) l.computeLineDistances();
+  group.add(l);
+  return l;
+}
+function arrow(group, from, dir, length, radius, material, head = 3.2) {
+  const g = new THREE.Group();
+  const shaftLen = length - head * 2.6;
+  add(g, new THREE.CylinderGeometry(radius, radius, shaftLen, 16), material, [0, shaftLen / 2, 0]);
+  add(g, new THREE.ConeGeometry(head, head * 2.6 + 0.3, 20), material, [0, shaftLen + head * 1.3 - 0.15, 0]);
+  g.position.copy(from);
+  g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  group.add(g);
+  return g;
+}
+// Cilindre entre dos punts (coordenades d'escena)
+function rod(group, a, b, radius, material, seg = 14) {
+  const d = new THREE.Vector3().subVectors(b, a);
+  const m = add(group, new THREE.CylinderGeometry(radius, radius, d.length(), seg), material);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  return m;
+}
+const tags = [];
+function tag(parent, text, position, cls = 'axl', color) {
+  const el = document.createElement('div');
+  el.className = cls;
+  el.textContent = text;
+  if (color) el.style.color = color;
+  const obj = new CSS2DObject(el);
+  obj.position.copy(position);
+  parent.add(obj);
+  tags.push(obj);
+  return obj;
+}
+function untag(obj) { tags.splice(tags.indexOf(obj), 1); obj.removeFromParent(); }
+function disposeChildren(group) {
+  for (const c of [...group.children]) {
+    if (c.isCSS2DObject) continue;
+    c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== MAT.pattern) o.material.dispose?.(); });
+    group.remove(c);
+  }
+}
+
+// ---------- Mallat del diagrama ----------
+const range = (a, b, step) => Array.from({ length: Math.round((b - a) / step) + 1 }, (_, i) => (a + i * step) * D2R);
+const DISH_ALPHAS = [...range(0, 6, 0.02), ...range(6.1, 20, 0.1), ...range(20.5, 180, 0.5)];
+const every = (arr, k) => arr.filter((_, i) => i % k === 0 || i === arr.length - 1);
+// 'tp': (θ, φ) clàssiques; 'beam': (α, β) al voltant de l'eix +x, amb mostreig dens a prop del feix
+function gridFor(a, coarse) {
+  if (a.sym) return { kind: 'beam', us: coarse ? every(DISH_ALPHAS, 4) : DISH_ALPHAS, vs: range(0, 360, coarse ? 12 : 3) };
+  if (a.beam) return { kind: 'beam', us: range(0, 180, coarse ? 2 : 0.5), vs: range(0, 360, coarse ? 8 : 2) };
+  return { kind: 'tp', us: range(0, 180, coarse ? 2 : 0.5), vs: range(0, 360, coarse ? 6 : 1.5) };
+}
+const state = { id: 'dipol', compare: '', scale: 'dbi', labels: false, cut: false, antenna: false, polar: true, selected: null };
+function radius(g, a) {
+  if (state.scale === 'dbi') return R_MAX * THREE.MathUtils.clamp((db(g) - G_FLOOR) / (G_TOP - G_FLOOR), 0, 1);
+  if (state.scale === 'db') return R_MAX * THREE.MathUtils.clamp((db(g / a.Gmax) + 40) / 40, 0, 1);
+  return R_MAX * g / a.Gmax;
+}
+function patternGeometry(a, coarse, colored) {
+  const { kind, us, vs } = gridFor(a, coarse), nu = us.length, nv = vs.length;
+  const pos = new Float32Array(nu * nv * 3), col = colored ? new Float32Array(nu * nv * 3) : null;
+  let p = 0;
+  for (const u of us) {
+    const su = Math.sin(u), cu = Math.cos(u);
+    for (const v of vs) {
+      let x, y, z;
+      if (kind === 'beam') { x = cu; y = su * Math.cos(v); z = su * Math.sin(v); }
+      else { x = su * Math.cos(v); y = su * Math.sin(v); z = cu; }
+      const g = a.G(x, y, z), r = radius(g, a);
+      pos[p] = x * r; pos[p + 1] = z * r; pos[p + 2] = -y * r;
+      if (col) { const c = cmap(db(g)); col[p] = c.r; col[p + 1] = c.g; col[p + 2] = c.b; }
+      p += 3;
+    }
+  }
+  // Ordre (a, b, c) amb b = u següent i c = v següent: ∂u × ∂v apunta cap enfora → cares frontals a l'exterior
+  const idx = [];
+  for (let i = 0; i < nu - 1; i++) for (let j = 0; j < nv - 1; j++) {
+    const A = i * nv + j, B = A + nv, C = A + 1, Dd = B + 1;
+    idx.push(A, B, C, B, Dd, C);
+  }
+  let geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  if (col) geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  geo = mergeVertices(geo); // soldadura de la costura i dels pols → normals suaus
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
+}
+// Punts d'un tall pla: t → direcció
+function cutAngles(a) {
+  if (a.sym) return [...DISH_ALPHAS, ...DISH_ALPHAS.slice(1, -1).map(x => 2 * Math.PI - x).reverse()];
+  return range(0, 359.5, 0.5);
+}
+const cutDirs = { h: t => [Math.cos(t), Math.sin(t), 0], v: t => [Math.cos(t), 0, Math.sin(t)] };
+
+// ---------- Diagrama principal ----------
+const pattern = part('pattern', { name: 'Diagrama 3D', desc: '' });
+const cuts = part('cuts', {
+  name: 'Talls principals',
+  desc: 'Intersecció del diagrama amb el pla horitzontal xy (θ = 90°, en negre) i amb el pla vertical xz (φ = 0° i 180°, en lila), que contenen la direcció de màxima radiació. Són els diagrames polars 2D dels catàlegs (panell «Talls 2D»): d’aquí es mesuren l’amplada de feix a −3 dB en cada pla, els lòbuls secundaris i la relació davant/darrere (F/B).',
+});
+const antennaPart = part('antenna', { name: 'Antena (esquemàtica)', desc: '', hideUnlessInside: true });
+const compare = part('compare', { name: 'Diagrama comparat', desc: '' });
+
+let patternMesh = null, ghostMesh = null, proxy = null;
+
+// ---------- Eixos i graella polar ----------
+const axes = part('axes', {
+  name: 'Coordenades esfèriques (θ, φ)',
+  desc: 'θ és l’angle des de l’eix z (zenit, de 0° a 180°) i φ l’angle azimutal en el pla xy des de l’eix x (de 0° a 360°). Les antenes directives apunten el feix principal cap a +x (φ = 0°, θ = 90°). La fletxa blava marca la direcció consultada; el lector inferior en dona el guany. Els anells del pla xy depenen de l’escala radial triada.',
+});
+const AX_LEN = R_MAX * 1.2;
+for (const [k, d] of [['x', phys(1, 0, 0)], ['y', phys(0, 1, 0)], ['z', phys(0, 0, 1)]]) {
+  arrow(axes, new THREE.Vector3(), d, AX_LEN, 1.0, MAT.ax[k], 3.8);
+  line(axes, [new THREE.Vector3(), d.clone().multiplyScalar(-R_MAX * 1.08)], LINE.neg);
+  tag(model, k, d.clone().multiplyScalar(AX_LEN + 11), 'axl', '#' + MAT.ax[k].color.getHexString());
+}
+for (let p = 0; p < 360; p += 30) {
+  const d = dirOf(90 * D2R, p * D2R);
+  line(axes, [d.clone().multiplyScalar(R_MAX * 0.06), d.clone().multiplyScalar(R_MAX * 1.08)], LINE.polar);
+  if (p % 90) tag(model, p + '°', d.clone().multiplyScalar(R_MAX * 1.16), 'axl small');
+}
+const rings = new THREE.Group();
+axes.add(rings);
+let ringTags = [];
+const RING_SETS = {
+  dbi: { values: [-20, 0, 20, 40], r: v => radius(lin(v), null), label: v => (v > 0 ? '+' : '') + fmt(v, 0) + (v === 0 ? ' dBi' : '') },
+  db:  { values: [-30, -20, -10, 0], r: v => R_MAX * (v + 40) / 40, label: v => fmt(v, 0) + ' dB' },
+  lin: { values: [0.25, 0.5, 0.75, 1], r: v => R_MAX * v, label: v => fmt(v, 2) },
+};
+function buildRings() {
+  disposeChildren(rings);
+  ringTags.forEach(untag); ringTags = [];
+  const set = RING_SETS[state.scale];
+  for (const v of set.values) {
+    const r = set.r(v), pts = [];
+    for (let p = 0; p <= 360; p += 2) pts.push(dirOf(90 * D2R, p * D2R).multiplyScalar(r));
+    line(rings, pts, LINE.polar);
+    ringTags.push(tag(model, set.label(v), dirOf(90 * D2R, -8 * D2R).multiplyScalar(r).add(new THREE.Vector3(0, 4, 0)), 'axl small'));
+  }
+}
+
+// ---------- Direcció consultada (θ, φ) ----------
+const dirGroup = new THREE.Group();
+axes.add(dirGroup);
+const RA = R_MAX * 1.06;
+const dirArrow = arrow(dirGroup, new THREE.Vector3(), new THREE.Vector3(0, 1, 0), R_MAX * 1.14, 1.0, MAT.dir, 3.2);
+const dot1 = add(dirGroup, new THREE.SphereGeometry(2.6, 24, 12), MAT.dir);
+const dot2 = add(dirGroup, new THREE.SphereGeometry(2.6, 24, 12), MAT.dot2);
+let arcTheta = null, arcPhi = null, projLines = [];
+const thetaTag = tag(model, 'θ', new THREE.Vector3(), 'axl', '#1f4fbf');
+const phiTag = tag(model, 'φ', new THREE.Vector3(), 'axl', '#1f4fbf');
+const view = { theta: 60 * D2R, phi: 40 * D2R };
+function setDirection(theta, phi) {
+  view.theta = theta; view.phi = phi;
+  const d = dirOf(theta, phi), x = Math.sin(theta) * Math.cos(phi), y = Math.sin(theta) * Math.sin(phi), z = Math.cos(theta);
+  dirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  const a = ANT[state.id], g1 = a.G(x, y, z);
+  dot1.position.copy(d).multiplyScalar(radius(g1, a));
+  const b = state.compare ? ANT[state.compare] : null, g2 = b ? b.G(x, y, z) : 0;
+  dot2.visible = !!b;
+  if (b) dot2.position.copy(d).multiplyScalar(radius(g2, b));
+  for (const o of [arcTheta, arcPhi, ...projLines]) if (o) { o.geometry.dispose(); dirGroup.remove(o); }
+  const n = 48;
+  arcTheta = line(dirGroup, Array.from({ length: n + 1 }, (_, i) => dirOf(theta * i / n, phi).multiplyScalar(RA)), LINE.dir);
+  arcPhi = line(dirGroup, Array.from({ length: n + 1 }, (_, i) => dirOf(90 * D2R, phi * i / n).multiplyScalar(RA)), LINE.dir);
+  const tip = d.clone().multiplyScalar(RA);
+  const foot = dirOf(90 * D2R, phi).multiplyScalar(RA * Math.sin(theta));
+  projLines = [line(dirGroup, [tip, foot], LINE.proj), line(dirGroup, [new THREE.Vector3(), foot], LINE.proj)];
+  for (const o of [arcTheta, arcPhi, ...projLines]) applyClip(o.material);
+  thetaTag.position.copy(dirOf(theta / 2, phi).multiplyScalar(RA + 9));
+  phiTag.position.copy(dirOf(90 * D2R, phi / 2).multiplyScalar(RA + 9));
+  $('rDir').textContent = `θ = ${Math.round(theta / D2R)}° · φ = ${Math.round(phi / D2R)}°`;
+  $('rG1').textContent = 'G = ' + fmtDb(g1);
+  $('m1').style.left = barPct(db(Math.max(g1, 1e-6)));
+  if (b) { $('rG2').textContent = 'G = ' + fmtDb(g2); $('m2').style.left = barPct(db(Math.max(g2, 1e-6))); }
+}
+
+// ---------- Antenes físiques (esquemàtiques, a l'origen) ----------
+const MODELS = {
+  isotropica(g) { add(g, new THREE.SphereGeometry(4, 32, 16), MAT.source); },
+  dipol(g) {
+    add(g, new THREE.CylinderGeometry(0.9, 0.9, 23.4, 20), MAT.metal, P(0, 0, 12.3));
+    add(g, new THREE.CylinderGeometry(0.9, 0.9, 23.4, 20), MAT.metal, P(0, 0, -12.3));
+    add(g, new THREE.BoxGeometry(3, 1.6, 3), MAT.feed);
+    rod(g, phys(-1.2, 0, 0), phys(-16, 0, 0), 0.5, MAT.dark);
+  },
+  yagi(g, a) {
+    const y = YAGI[a.yagi], L = 46, mid = (y.xs[0] + y.xs.at(-1)) / 2 * L;
+    rod(g, phys(y.xs[0] * L - mid - 4, 0, 0), phys(y.xs.at(-1) * L - mid + 4, 0, 0), 1.0, MAT.alu);
+    y.xs.forEach((x, n) => {
+      const X = x * L - mid, h = y.len[n] * L / 2;
+      if (n === 1) { // dipol alimentat: dos braços i caixa d'alimentació
+        rod(g, phys(X, 0, 0.6), phys(X, 0, h), 0.55, MAT.metal);
+        rod(g, phys(X, 0, -0.6), phys(X, 0, -h), 0.55, MAT.metal);
+        add(g, new THREE.BoxGeometry(2.6, 2.6, 2.6), MAT.feed, P(X, 0, 0));
+      } else rod(g, phys(X, 0, -h), phys(X, 0, h), 0.55, MAT.metal);
+    });
+  },
+  sectorial(g) {
+    add(g, new THREE.BoxGeometry(6, 56, 14), MAT.radome);
+    for (const s of [1, -1]) add(g, new THREE.BoxGeometry(7, 3, 15), MAT.dark, [0, s * 28.5, 0]);
+    add(g, new THREE.CylinderGeometry(2.2, 2.2, 84, 20), MAT.metal, P(-11, 0, 0));
+    for (const s of [1, -1]) add(g, new THREE.BoxGeometry(9, 3, 4), MAT.alu, [-7, s * 18, 0]);
+    for (const s of [1, -1]) add(g, new THREE.CylinderGeometry(1, 1, 4, 14), MAT.feed, [0, -31.5, s * 3]);
+  },
+  bilobular(g) {
+    add(g, new THREE.BoxGeometry(4, 44, 11), MAT.radome);
+    for (const s of [1, -1]) add(g, new THREE.BoxGeometry(5, 3, 12), MAT.dark, [0, s * 22.5, 0]);
+    add(g, new THREE.CylinderGeometry(2, 2, 76, 20), MAT.metal, [0, 0, 12]);
+    for (const s of [1, -1]) add(g, new THREE.BoxGeometry(3, 3, 8), MAT.alu, [0, s * 14, 8]);
+  },
+  botzina(g) {
+    const horn = new THREE.BoxGeometry(1, 1, 1), p = horn.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const front = p.getX(i) > 0;
+      p.setXYZ(i, front ? 14 : -10, p.getY(i) * (front ? 18 : 2.5), p.getZ(i) * (front ? 24 : 5));
+    }
+    horn.computeVertexNormals();
+    add(g, horn, MAT.alu);
+    add(g, new THREE.BoxGeometry(0.6, 16.4, 22.4), MAT.dark, [14.1, 0, 0]);
+    add(g, new THREE.BoxGeometry(13, 2.3, 4.8), MAT.alu, [-15.9, 0, 0]);
+    add(g, new THREE.BoxGeometry(1.4, 7, 9.5), MAT.metal, [-22.4, 0, 0]);
+  },
+  parabolica(g, a) {
+    if (a === ANT['parabolica-satellit']) {
+      const f = 24, R = 20, t = 0.8, prof = [[0, -t]];
+      for (let r = 1; r <= R; r++) prof.push([r, r * r / (4 * f) - t]);
+      for (let r = R; r >= 1; r--) prof.push([r, r * r / (4 * f)]);
+      prof.push([0, 0]);
+      const dish = new THREE.LatheGeometry(v2(prof), 64);
+      dish.rotateZ(-Math.PI / 2); // eix de revolució → +x (concavitat cap al feix)
+      add(g, dish, MAT.radome, [-6, 0, 0]);
+      const lnb = phys(18, 0, 0), rim = phys(-6 + R * R / (4 * f) - 0.6, 0, -R + 0.8);
+      rod(g, rim, lnb.clone().add(phys(-1.5, 0, -1.5)), 0.9, MAT.dark);
+      rod(g, phys(13.5, 0, 0), phys(21, 0, 0), 1.8, MAT.dark, 20);
+      add(g, new THREE.ConeGeometry(2.6, 3.4, 20), MAT.dark, P(12.2, 0, 0)).rotation.z = -Math.PI / 2;
+      add(g, new THREE.CylinderGeometry(2, 2, 62, 20), MAT.metal, P(-12, 0, -29));
+      add(g, new THREE.BoxGeometry(7, 4, 4), MAT.alu, P(-9.5, 0, 0));
+    } else {
+      const drum = new THREE.LatheGeometry(v2([[0, -8], [8, -8], [18, -4], [18, 6], [0, 6]]), 64);
+      drum.rotateZ(-Math.PI / 2);
+      add(g, drum, MAT.radome);
+      add(g, new THREE.CylinderGeometry(16, 16, 0.6, 64), MAT.alu, P(6.1, 0, 0)).rotation.z = -Math.PI / 2;
+      add(g, new THREE.BoxGeometry(10, 16, 16), MAT.alu, P(-12.5, 0, 0));
+      add(g, new THREE.CylinderGeometry(2.4, 2.4, 80, 20), MAT.metal, P(-21, 0, 0));
+      add(g, new THREE.BoxGeometry(6, 4, 4), MAT.metal, P(-19, 0, 0));
+    }
+  },
+};
+
+// ---------- Farciment de secció i retall ----------
+// Tall d'un quadrant (x > 0, y > 0): es veuen alhora les seccions dels plans xz i yz (el feix principal queda tallat pel mig)
+const cutPlanes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
+const inRemovedQuadrant = p => p.x > 0.01 && p.z < -0.01;
+function applyClip(material) {
+  material.clippingPlanes = state.cut ? cutPlanes : null;
+  material.clipIntersection = true;
+  material.needsUpdate = true;
+}
+function addSection(m) {
+  if (m.material.transparent || !m.material.color) return;
+  const mat = new THREE.MeshBasicMaterial({ color: m.material.color.clone().multiplyScalar(0.62), vertexColors: m.material.vertexColors,
+    side: THREE.BackSide, clippingPlanes: cutPlanes, clipIntersection: true });
+  const sec = new THREE.Mesh(m.geometry, mat);
+  sec.userData.isSection = true;
+  sec.visible = state.cut;
+  m.add(sec);
+  m.userData.section = sec;
+}
+function syncClip() {
+  model.traverse(o => { if (o.material && !o.userData.isSection) applyClip(o.material); });
+}
+
+// ---------- Construcció segons l'antena, la comparació i l'escala ----------
+function tube(group, a, plane, material) {
+  const pts = [];
+  for (const t of cutAngles(a)) {
+    const [x, y, z] = cutDirs[plane](t), r = radius(a.G(x, y, z), a) + 0.3, p = phys(x * r, y * r, z * r);
+    if (!pts.length || p.distanceTo(pts.at(-1)) > 0.08) pts.push(p);
+  }
+  if (pts[0].distanceTo(pts.at(-1)) < 0.08) pts.pop();
+  const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+  return add(group, new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 3000), 0.75, 8, true), material);
+}
+function anchorOn(a, theta, phi, extra = 4) {
+  const d = dirOf(theta, phi), x = Math.sin(theta) * Math.cos(phi), y = Math.sin(theta) * Math.sin(phi), z = Math.cos(theta);
+  return d.multiplyScalar(radius(a.G(x, y, z), a) + extra);
+}
+function buildPattern() {
+  const a = prepare(state.id);
+  disposeChildren(pattern); disposeChildren(cuts);
+  patternMesh = add(pattern, patternGeometry(a, false, true), MAT.pattern);
+  patternMesh.userData.pattern = true;
+  addSection(patternMesh);
+  proxy?.geometry.dispose();
+  proxy = new THREE.Mesh(patternGeometry(a, true, false), MAT.cutH); // malla grollera, fora de l'escena: selecció i oclusió d'etiquetes
+  tube(cuts, a, 'h', MAT.cutH).traverse(o => o.isMesh && !o.userData.isSection && addSection(o));
+  tube(cuts, a, 'v', MAT.cutV).traverse(o => o.isMesh && !o.userData.isSection && addSection(o));
+  parts.pattern.name = `Diagrama 3D · ${a.name}`;
+  parts.pattern.desc = a.desc;
+  const omni = a.hpH == null;
+  parts.pattern.label.position.copy(omni ? anchorOn(a, 60 * D2R, 220 * D2R) : anchorOn(a, 90 * D2R, 0, 6));
+  parts.cuts.label.position.copy(anchorOn(a, 90 * D2R, 125 * D2R, 2));
+  labelEls.pattern.querySelector('.txt').textContent = parts.pattern.name;
+}
+function buildAntenna() {
+  const a = ANT[state.id];
+  disposeChildren(antennaPart);
+  MODELS[a.family](antennaPart, a);
+  antennaPart.traverse(o => { if (o.isMesh && !o.userData.isSection) addSection(o); });
+  parts.antenna.name = `Antena · ${a.short}`;
+  parts.antenna.desc = a.hw + ' Model esquemàtic (no a escala respecte del diagrama).';
+  labelEls.antenna.querySelector('.txt').textContent = parts.antenna.name;
+  const box = new THREE.Box3().setFromObject(antennaPart);
+  parts.antenna.label.position.set(box.max.x * 0.5, box.max.y + 4, 0);
+}
+function buildCompare() {
+  disposeChildren(compare);
+  ghostMesh = null;
+  if (!state.compare) return;
+  const b = prepare(state.compare);
+  ghostMesh = add(compare, patternGeometry(b, false, false), MAT.ghost);
+  ghostMesh.castShadow = false;
+  parts.compare.name = `Comparació · ${b.name}`;
+  parts.compare.desc = `Diagrama de ${b.name} a la mateixa escala radial (translúcid). ${b.desc}`;
+  labelEls.compare.querySelector('.txt').textContent = parts.compare.name;
+  parts.compare.label.position.copy(b.hpH == null ? anchorOn(b, 70 * D2R, 160 * D2R) : anchorOn(b, 90 * D2R, 0, 6));
+}
+function rebuild({ antenna = false, comparison = false } = {}) {
+  buildPattern();
+  if (antenna) buildAntenna();
+  if (comparison || state.scale !== rebuild.scale) buildCompare();
+  rebuild.scale = state.scale;
+  buildRings();
+  syncClip();
+  refresh();
+  setDirection(view.theta, view.phi);
+  updatePanel();
+  drawPolars();
+  if (state.selected) { const k = state.selected; state.selected = null; select(k); }
+}
+
+// ---------- Etiquetes ----------
+const labelEls = {};
+for (const [key, p] of Object.entries(parts)) {
+  const el = document.createElement('div');
+  el.className = 'lbl' + (key === 'cuts' || key === 'compare' ? ' left' : '');
+  el.innerHTML = `<span class="dot"></span><span class="txt">${p.name}</span>`;
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); select(key); });
+  const obj = new CSS2DObject(el);
+  obj.position.copy(p.anchor || new THREE.Vector3());
+  model.add(obj); // a «model»: CSS2DRenderer no hereta la visibilitat del grup
+  p.label = obj;
+  labelEls[key] = el;
+}
+parts.axes.label.position.copy(phys(0, 0, 1).multiplyScalar(R_MAX * 1.05));
+
+// ---------- Selecció ----------
+const infoEl = document.getElementById('info');
+const DEFAULT_INFO = infoEl.innerHTML;
+let helpDismissed = false; // un clic sobre el panell l'amaga; l'ajuda inicial ja no torna a sortir
+const HILITE = new THREE.Color(0x1f4fbf);
+function select(key) {
+  state.selected = state.selected === key ? null : key;
+  model.traverse(m => {
+    if (!m.isMesh || m.userData.isSection || !m.material.emissive || m.material.transparent) return;
+    let p = m; while (p && !p.userData.key) p = p.parent;
+    if (!m.userData.emissive) m.userData.emissive = [m.material.emissive.clone(), m.material.emissiveIntensity];
+    const on = state.selected && p?.userData.key === state.selected, [base, intensity] = m.userData.emissive;
+    m.material.emissive.copy(on ? HILITE : base);
+    m.material.emissiveIntensity = on ? 0.35 : intensity;
+  });
+  for (const [k, el] of Object.entries(labelEls)) el.classList.toggle('sel', k === state.selected);
+  const p = parts[state.selected];
+  infoEl.innerHTML = p ? `<h2>${p.name}</h2><p>${p.desc}</p>` : DEFAULT_INFO;
+  infoEl.classList.toggle('hidden', !p && helpDismissed);
+}
+infoEl.addEventListener('click', () => {
+  helpDismissed = true;
+  if (state.selected) select(state.selected);
+  infoEl.classList.add('hidden');
+});
+
+// ---------- Interacció amb el ratolí ----------
+const isShown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+function pick(e, objects) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  return ray.intersectObjects(objects, false).find(h => (h.object === proxy || isShown(h.object)) && !(state.cut && inRemovedQuadrant(h.point)));
+}
+function directionFromHit(hit) {
+  const p = hit.point, x = p.x, y = -p.z, z = p.y;
+  const theta = Math.acos(THREE.MathUtils.clamp(z / Math.hypot(x, y, z), -1, 1));
+  let phi = Math.atan2(y, x); if (phi < 0) phi += 2 * Math.PI;
+  setDirection(theta, phi);
+}
+let downAt = null, hoverEvent = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointermove', e => { if (!e.buttons && e.pointerType !== 'touch') hoverEvent = e; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  const pickables = [proxy];
+  model.traverse(o => { if (o.isMesh && !o.userData.isSection && !o.userData.pattern && o.parent !== dirGroup && !dirGroup.children.includes(o.parent)) pickables.push(o); });
+  const hit = pick(e, pickables);
+  if (hit) {
+    let key;
+    if (hit.object === proxy) { directionFromHit(hit); key = 'pattern'; }
+    else { let p = hit.object; while (p && !p.userData.key) p = p.parent; key = p?.userData.key; }
+    if (key) select(key);
+  } else if (state.selected) select(state.selected);
+});
+
+// ---------- Panell lateral ----------
+const $ = id => document.getElementById(id);
+function buildSelector() {
+  $('families').innerHTML = FAMILIES.map(([f, label]) => `<button class="chip" data-family="${f}">${label}</button>`).join('');
+  $('families').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const f = b.dataset.family;
+    if (ANT[state.id].family === f) return;
+    const ids = Object.keys(ANT).filter(k => ANT[k].family === f);
+    setAntenna(f === 'yagi' ? 'yagi-4' : ids[0]);
+  });
+  $('sCompare').innerHTML = '<option value="">— Cap —</option>' + Object.entries(ANT).map(([k, a]) => `<option value="${k}">${a.name}</option>`).join('');
+  $('sCompare').onchange = e => setCompare(e.target.value);
+  $('sScale').onchange = e => setScale(e.target.value);
+}
+function syncSelector() {
+  const a = ANT[state.id];
+  $('families').querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.family === a.family));
+  const vars = Object.entries(ANT).filter(([, v]) => v.family === a.family && v.variant);
+  $('variants').innerHTML = vars.map(([k, v]) => `<button class="chip${k === state.id ? ' on' : ''}" data-id="${k}">${v.variant}</button>`).join('');
+  $('variants').querySelectorAll('.chip').forEach(b => b.onclick = () => setAntenna(b.dataset.id));
+  $('sCompare').value = state.compare;
+  $('sScale').value = state.scale;
+  $('scaleHint').textContent = {
+    dbi: 'Radi ∝ guany en dBi (de −30 a +45 dBi): totes les antenes a la mateixa escala; l’esfera isotròpica (0 dBi) és la referència.',
+    db: 'Radi ∝ dB relatius al màxim de cada antena (de −40 a 0 dB): es veuen bé els lòbuls secundaris i els nuls.',
+    lin: 'Radi ∝ guany lineal relatiu G/Gmàx: la distribució real de la potència; els lòbuls petits gairebé desapareixen.',
+  }[state.scale];
+}
+function updatePanel() {
+  const a = ANT[state.id], b = state.compare ? ANT[state.compare] : null;
+  const hp = v => v == null ? 'omni' : fmt(v, v < 10 ? 2 : 1) + '°';
+  const row = (k, f) => `<tr><td>${k}</td><td>${f(a)}${b ? `<span class="cmp">· ${f(b)}</span>` : ''}</td></tr>`;
+  $('params').innerHTML = [
+    row('Guany G', x => `${fmt(db(x.Gmax), x.Gmax > 1.01 ? 1 : 0)} dBi`),
+    row('Directivitat D', x => `${fmt(db(x.Dmax), x.Dmax > 1.01 ? 1 : 0)} dBi`),
+    row('Eficiència η = G/D', x => `${Math.round(x.eta * 100)} %`),
+    row('Feix −3 dB horitzontal', x => x.family === 'isotropica' ? '—' : hp(x.hpH)),
+    row('Feix −3 dB vertical', x => x.family === 'isotropica' ? '—' : hp(x.hpV)),
+    row('Relació davant/darrere', x => x.FB == null ? '—' : x.FB > 60 ? '> 60 dB' : `${fmt(x.FB, 0)} dB`),
+    `<tr><td>Banda</td><td>${a.band}</td></tr>`,
+    `<tr><td>Polarització</td><td>${a.pol}</td></tr>`,
+  ].join('');
+  $('rName1').textContent = a.short;
+  $('rName2').textContent = b ? b.short : '';
+  $('readout').classList.toggle('cmp', !!b);
+}
+
+// ---------- Talls 2D (diagrames polars) ----------
+function drawPolar(canvas, plane) {
+  const w = canvas.clientWidth, ratio = window.devicePixelRatio || 1;
+  if (!w) return;
+  canvas.width = w * ratio; canvas.height = w * ratio;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  const c = w / 2, Rc = w / 2 - 12, k = Rc / R_MAX;
+  ctx.clearRect(0, 0, w, w);
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(124,135,148,.45)'; ctx.fillStyle = '#5b6675'; ctx.font = '9px system-ui';
+  const set = RING_SETS[state.scale];
+  for (const v of set.values) { ctx.beginPath(); ctx.arc(c, c, set.r(v) * k, 0, 2 * Math.PI); ctx.stroke(); }
+  if (state.scale === 'db') { ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(200,53,43,.6)'; ctx.beginPath(); ctx.arc(c, c, R_MAX * 37 / 40 * k, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle = 'rgba(124,135,148,.45)'; }
+  for (let t = 0; t < 360; t += 30) { ctx.beginPath(); ctx.moveTo(c, c); ctx.lineTo(c + Rc * Math.cos(t * D2R), c - Rc * Math.sin(t * D2R)); ctx.stroke(); }
+  const v0 = set.values.at(-1);
+  ctx.fillText(set.label(v0), c + 3, c - set.r(v0) * k + 9);
+  ctx.fillText(plane === 'h' ? 'x' : 'x', w - 9, c - 3);
+  ctx.fillText(plane === 'h' ? 'y' : 'z', c + 3, 9);
+  const trace = (a, color, dash) => {
+    ctx.beginPath(); ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = 1.6;
+    cutAngles(a).forEach((t, i) => {
+      const r = radius(a.G(...cutDirs[plane](t)), a) * k, X = c + r * Math.cos(t), Y = c - r * Math.sin(t);
+      i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+    });
+    ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+  };
+  if (state.compare) trace(ANT[state.compare], '#8a94a1', [4, 3]);
+  trace(ANT[state.id], plane === 'h' ? '#1b2430' : '#7a2a9a', []);
+}
+function drawPolars() { if (state.polar) { drawPolar($('cH'), 'h'); drawPolar($('cV'), 'v'); } }
+
+// ---------- Estat ----------
+function setAntenna(id) {
+  state.id = id;
+  syncSelector();
+  rebuild({ antenna: true });
+}
+function setCompare(id) {
+  state.compare = id === state.id ? '' : id;
+  syncSelector();
+  rebuild({ comparison: true });
+}
+function setScale(s) { state.scale = s; syncSelector(); rebuild({ comparison: true }); }
+
+function refresh() {
+  const translucent = state.antenna;
+  const m = patternMesh.material;
+  m.transparent = translucent; m.opacity = translucent ? 0.32 : 1; m.depthWrite = !translucent; m.needsUpdate = true;
+  if (patternMesh) {
+    patternMesh.castShadow = !translucent;
+    if (patternMesh.userData.section) patternMesh.userData.section.visible = state.cut && !translucent;
+  }
+  // Oclusió: l'antena física queda dins del diagrama opac → només es processa si es pot veure
+  const inside = state.cut || state.antenna;
+  antennaPart.visible = parts.antenna.label.visible = inside;
+  compare.visible = parts.compare.label.visible = !!state.compare;
+  model.traverse(o => { if (o.userData.isSection && o.parent !== patternMesh) o.visible = state.cut; });
+  if (!inside && state.selected === 'antenna') select('antenna');
+  if (!state.compare && state.selected === 'compare') select('compare');
+}
+$('bLabels').onclick = () => { state.labels = !state.labels; $('bLabels').classList.toggle('on', state.labels); labelRenderer.domElement.classList.toggle('hidden', !state.labels); };
+$('bCut').onclick = () => { state.cut = !state.cut; $('bCut').classList.toggle('on', state.cut); syncClip(); refresh(); };
+$('bAntenna').onclick = () => { state.antenna = !state.antenna; $('bAntenna').classList.toggle('on', state.antenna); refresh(); };
+$('bPolar').onclick = () => { state.polar = !state.polar; $('bPolar').classList.toggle('on', state.polar); $('polar').classList.toggle('hidden', !state.polar); drawPolars(); };
+$('bRotate').onclick = () => { controls.autoRotate = !controls.autoRotate; $('bRotate').classList.toggle('on', controls.autoRotate); };
+$('bReset').onclick = () => { camera.position.copy(HOME_POS); controls.target.copy(HOME_TARGET); controls.update(); };
+
+// Barra de colors
+const barPct = gdb => (THREE.MathUtils.clamp((gdb - G_FLOOR) / (G_TOP - G_FLOOR), 0, 1) * 100).toFixed(2) + '%';
+$('bar').style.background = 'linear-gradient(90deg,' + STOPS.map(([t, c]) => `#${c.getHexString()} ${(t * 100).toFixed(1)}%`).join(',') + ')';
+$('ticks').innerHTML = [-30, -15, 0, 15, 30, 45].map(v => `<span style="left:${barPct(v)}">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}</span>`).join('');
+
+// ---------- Inici (paràmetres d'URL) ----------
+const q = new URLSearchParams(location.search);
+if (ANT[q.get('antena')]) state.id = q.get('antena');
+if (ANT[q.get('compara')] && q.get('compara') !== state.id) state.compare = q.get('compara');
+if (RING_SETS[q.get('escala')]) state.scale = q.get('escala');
+state.polar = window.innerWidth > 860 && !q.has('sense-talls');
+$('bPolar').classList.toggle('on', state.polar);
+$('polar').classList.toggle('hidden', !state.polar);
+buildSelector();
+syncSelector();
+rebuild({ antenna: true, comparison: true });
+if (q.has('tall')) $('bCut').click();
+if (q.has('antena-visible')) $('bAntenna').click();
+if (q.has('etiquetes')) $('bLabels').click();
+
+// ---------- Bucle ----------
+function resize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.fov = w / h < 1 ? 35 / Math.max(w / h, 0.55) : 35;
+  camera.updateProjectionMatrix();
+  drawPolars();
+}
+new ResizeObserver(resize).observe(container);
+resize();
+
+const clock = new THREE.Clock();
+const tagRay = new THREE.Raycaster(), tagPos = new THREE.Vector3();
+let frame = 0;
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  if (hoverEvent) { const hit = pick(hoverEvent, [proxy]); if (hit) directionFromHit(hit); hoverEvent = null; }
+  if (state.id === 'isotropica' && antennaPart.visible) antennaPart.children[0]?.scale.setScalar(1 + 0.12 * Math.sin(t * 4));
+  controls.update();
+  // Les anotacions que queden darrere del diagrama opac s'amaguen (CSS2D no té test de profunditat)
+  if (frame++ % 6 === 0) {
+    const opaque = !state.cut && !state.antenna;
+    for (const o of tags) {
+      let hidden = false;
+      if (opaque) {
+        o.getWorldPosition(tagPos);
+        const dist = camera.position.distanceTo(tagPos);
+        tagRay.set(camera.position, tagPos.clone().sub(camera.position).divideScalar(dist));
+        tagRay.far = dist - 3;
+        hidden = tagRay.intersectObject(proxy, false).length > 0;
+      }
+      o.visible = !hidden;
+    }
+  }
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

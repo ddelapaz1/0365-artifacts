@@ -40,7 +40,10 @@
   .polar.hidden { display:none; }
   .polar figure { margin:0; text-align:center; }
   .polar figcaption { font-size:12.5px; font-weight:600; margin-bottom:2px; }
-  .polar canvas { width:min(30vh, 21vw); height:min(30vh, 21vw); min-width:150px; min-height:150px; display:block; }
+  .polar canvas { width:min(40vh, 26vw); height:min(40vh, 26vw); min-width:150px; min-height:150px; display:block; }
+  .polar .pw { position:relative; }
+  .polar canvas.ov { position:absolute; inset:0; pointer-events:none; }
+  .polar .leg b { color:var(--accent); }
   .polar .leg { font-size:11.5px; color:var(--muted); margin-top:2px; }
   .info { position:absolute; left:14px; bottom:14px; max-width:min(420px, calc(100% - 300px)); padding:12px 14px; font-size:13px; line-height:1.45; cursor:pointer; }
   .info.hidden { display:none; }
@@ -67,7 +70,7 @@
   @media(max-width:860px) {
     .side { width:262px; padding:8px 10px; } .side h1 { font-size:13px; } .side .sub { font-size:10.5px; }
     .chip { font-size:11px; padding:4px 7px; } .btns { max-width:calc(100% - 290px); } .btns button { padding:6px 8px; font-size:11px; }
-    .polar canvas { width:min(30vh, 34vw); height:min(30vh, 34vw); } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
+    .polar canvas { width:min(40vh, 34vw); height:min(40vh, 34vw); } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
     .readout { width:240px; }
   }
   @media(max-width:600px) {
@@ -108,8 +111,8 @@
   <button id="bReset">Reinicia la vista</button>
 </div>
 <div class="polar card" id="polar">
-  <figure><figcaption style="color:var(--h)">Pla horitzontal (xy)</figcaption><canvas id="cH"></canvas><div class="leg">vista superior · θ = 90°</div></figure>
-  <figure><figcaption style="color:var(--v)">Pla vertical (xz)</figcaption><canvas id="cV"></canvas><div class="leg">vista lateral · φ = 0°/180°</div></figure>
+  <figure><figcaption style="color:var(--h)">Pla horitzontal (xy)</figcaption><div class="pw"><canvas id="cH"></canvas><canvas id="oH" class="ov"></canvas></div><div class="leg">vista superior · θ = 90° · <b id="lH">φ = —</b></div></figure>
+  <figure><figcaption style="color:var(--v)">Pla vertical (xz)</figcaption><div class="pw"><canvas id="cV"></canvas><canvas id="oV" class="ov"></canvas></div><div class="leg">vista lateral · φ = 0°/180° · <b id="lV">θ = —</b></div></figure>
 </div>
 <div class="info card" id="info">
   <h2>Model interactiu</h2>
@@ -650,6 +653,7 @@ function setDirection(theta, phi) {
   thetaTag.position.copy(dirOf(theta / 2, phi).multiplyScalar(RA + 9));
   phiTag.position.copy(dirOf(90 * D2R, phi / 2).multiplyScalar(RA + 9));
   $('rDir').textContent = `θ = ${Math.round(theta / D2R)}° · φ = ${Math.round(phi / D2R)}°`;
+  drawMarkers();
   $('rG1').textContent = 'G = ' + fmtDb(g1);
   $('m1').style.left = barPct(db(Math.max(g1, 1e-6)));
 }
@@ -948,7 +952,38 @@ function drawPolar(canvas, plane) {
   };
   trace(ANT[state.id], plane === 'h' ? '#1b2430' : '#7a2a9a', []);
 }
-function drawPolars() { if (state.polar) { drawPolar($('cH'), 'h'); drawPolar($('cV'), 'v'); } }
+// Direcció del cursor projectada sobre cada pla: fletxa blava fins al diagrama del tall
+function drawMarker(canvas, plane) {
+  const w = canvas.clientWidth, ratio = window.devicePixelRatio || 1;
+  if (!w) return;
+  if (canvas.width !== w * ratio) { canvas.width = w * ratio; canvas.height = w * ratio; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, w, w);
+  const a = ANT[state.id], c = w / 2, k = (w / 2 - 12) / R_MAX, { theta, phi } = view;
+  // Pla xy: azimut φ. Pla xz: elevació 90° − θ, a la banda de davant (x > 0) o de darrere segons cos φ
+  const el = Math.PI / 2 - theta;
+  const t = plane === 'h' ? phi : (Math.cos(phi) >= 0 ? el : Math.PI - el);
+  const r = Math.max(radius(a.G(...cutDirs[plane](t)), a) * k, 0), ux = Math.cos(t), uy = -Math.sin(t);
+  const X = c + r * ux, Y = c + r * uy, head = Math.max(7, w / 30), lw = Math.max(2, w / 110);
+  ctx.strokeStyle = 'rgba(31,79,191,.45)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(c + (w / 2 - 6) * ux, c + (w / 2 - 6) * uy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = ctx.fillStyle = '#1f4fbf'; ctx.lineWidth = lw;
+  if (r > head) {
+    ctx.beginPath(); ctx.moveTo(c, c); ctx.lineTo(X - head * 0.8 * ux, Y - head * 0.8 * uy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X, Y);
+    ctx.lineTo(X - head * ux - head * 0.45 * uy, Y - head * uy + head * 0.45 * ux);
+    ctx.lineTo(X - head * ux + head * 0.45 * uy, Y - head * uy - head * 0.45 * ux);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(X, Y, lw * 1.6, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
+  const deg = v => Math.round(v / D2R);
+  $(plane === 'h' ? 'lH' : 'lV').textContent = plane === 'h'
+    ? `φ = ${deg(phi)}° · ${fmtDb(a.G(...cutDirs.h(t)))}`
+    : `θ = ${deg(theta)}° · ${fmtDb(a.G(...cutDirs.v(t)))}`;
+}
+function drawMarkers() { if (state.polar) { drawMarker($('oH'), 'h'); drawMarker($('oV'), 'v'); } }
+function drawPolars() { if (state.polar) { drawPolar($('cH'), 'h'); drawPolar($('cV'), 'v'); drawMarkers(); } }
 
 // ---------- Estat ----------
 function setAntenna(id) {
@@ -975,7 +1010,7 @@ function refresh() {
 $('bLabels').onclick = () => { state.labels = !state.labels; $('bLabels').classList.toggle('on', state.labels); labelRenderer.domElement.classList.toggle('hidden', !state.labels); };
 $('bCut').onclick = () => { state.cut = !state.cut; $('bCut').classList.toggle('on', state.cut); syncClip(); refresh(); };
 $('bAntenna').onclick = () => { state.antenna = !state.antenna; $('bAntenna').classList.toggle('on', state.antenna); refresh(); };
-$('bPolar').onclick = () => { state.polar = !state.polar; $('bPolar').classList.toggle('on', state.polar); $('polar').classList.toggle('hidden', !state.polar); drawPolars(); };
+$('bPolar').onclick = () => { state.polar = !state.polar; $('bPolar').classList.toggle('on', state.polar); $('polar').classList.toggle('hidden', !state.polar); resize(); };
 $('bRotate').onclick = () => { controls.autoRotate = !controls.autoRotate; $('bRotate').classList.toggle('on', controls.autoRotate); };
 $('bReset').onclick = () => { camera.position.copy(HOME_POS); controls.target.copy(HOME_TARGET); controls.update(); };
 
@@ -1005,6 +1040,9 @@ function resize() {
   labelRenderer.setSize(w, h);
   camera.aspect = w / h;
   camera.fov = w / h < 1 ? 35 / Math.max(w / h, 0.55) : 35;
+  // Amb els talls 2D a la dreta, el model es desplaça cap a l'espai lliure (a baix a l'esquerra)
+  if (state.polar && w > 860) camera.setViewOffset(w, h, w * 0.07, -h * 0.1, w, h);
+  else camera.clearViewOffset();
   camera.updateProjectionMatrix();
   drawPolars();
 }

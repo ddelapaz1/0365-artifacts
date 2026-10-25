@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagrama de radiació · antena isotròpica — Model 3D</title>
+<style>
+  :root { --ink:#1b2430; --muted:#5b6675; --accent:#1f4fbf; --panel:rgba(255,255,255,.86); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); }
+  body { background:radial-gradient(ellipse at 50% 35%, #ffffff 0%, #eef1f5 55%, #dde2e9 100%); overflow:hidden; }
+  #app { position:fixed; inset:0; }
+  #app canvas { display:block; }
+  .labels { position:absolute; inset:0; pointer-events:none; }
+  .hud { position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; pointer-events:none; flex-wrap:wrap; }
+  .title { background:var(--panel); backdrop-filter:blur(8px); padding:10px 14px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.08); pointer-events:auto; }
+  .title h1 { font-size:15px; margin:0 0 2px; letter-spacing:.2px; }
+  .title p { font-size:12px; margin:0; color:var(--muted); }
+  .btns { display:flex; gap:6px; flex-wrap:wrap; pointer-events:auto; }
+  .btns button { font:inherit; font-size:12px; border:1px solid #c9d0d9; background:var(--panel); backdrop-filter:blur(8px); color:var(--ink); padding:7px 11px; border-radius:8px; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .btns button:hover { border-color:var(--accent); }
+  .btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .info { position:absolute; left:14px; bottom:14px; max-width:min(400px, calc(100% - 28px)); background:var(--panel); backdrop-filter:blur(8px); border-radius:10px; padding:12px 14px; box-shadow:0 2px 10px rgba(0,0,0,.08); font-size:13px; line-height:1.45; }
+  .info { cursor:pointer; }
+  .info.hidden { display:none; }
+  .info h2 { font-size:14px; margin:0 0 4px; color:var(--accent); }
+  .info p { margin:0; }
+  .info .hint { color:var(--muted); font-size:12px; }
+  .lbl { pointer-events:auto; cursor:pointer; display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--ink); white-space:nowrap; transform:translateY(-50%); }
+  .lbl .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 3px rgba(31,79,191,.22); flex:none; }
+  .lbl .txt { background:rgba(255,255,255,.92); border:1px solid #d3d9e1; padding:3px 7px; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .lbl.sel .txt { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .lbl.left { flex-direction:row-reverse; transform:translate(-100%,-50%); }
+  .labels.hidden .lbl { display:none !important; }
+  .axl { font-size:13px; font-weight:700; font-style:italic; font-family:"Times New Roman",Times,serif; text-shadow:0 0 3px #fff, 0 0 3px #fff; pointer-events:none; }
+  .axl.small { font-size:11px; font-style:normal; font-weight:600; font-family:inherit; color:var(--muted); }
+  .readout { position:absolute; right:14px; bottom:14px; width:250px; padding:10px 12px; border-radius:10px; background:var(--panel); backdrop-filter:blur(8px); box-shadow:0 2px 10px rgba(0,0,0,.08); font-size:12px; line-height:1.5; pointer-events:none; }
+  .readout b { color:var(--accent); }
+  .readout .dip { display:none; }
+  .readout.dipole .dip { display:block; }
+  .bar { position:relative; height:10px; border-radius:3px; margin:8px 0 2px; }
+  .ticks { position:relative; height:14px; font-size:10px; color:var(--muted); }
+  .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+  .ticks span:first-child { transform:none; }
+  .ticks span:last-child { transform:translateX(-100%); }
+  .mark { position:absolute; top:-3px; width:2px; height:16px; background:#1b2430; transform:translateX(-50%); }
+  .readout .cap { font-size:10.5px; color:var(--muted); }
+  @media(max-width:600px) { .hud { gap:6px; } .title h1 { font-size:13px; } .title p { font-size:10px; } .btns button { padding:6px 8px; font-size:11px; } .info { bottom:150px; font-size:12px; } .readout { left:14px; width:auto; } .lbl { font-size:10px; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="hud">
+  <div class="title">
+    <h1>Diagrama de radiació · antena isotròpica</h1>
+    <p>U(θ, φ) = P<sub>rad</sub> / 4π · D = 1 (0 dBi) · escala lineal de guany</p>
+  </div>
+  <div class="btns">
+    <button id="bLabels">Etiquetes</button>
+    <button id="bCut">Tall</button>
+    <button id="bVectors">Vectors S</button>
+    <button id="bDipole">Compara amb dipol λ/2</button>
+    <button id="bRotate">Girar</button>
+    <button id="bReset">Reinicia la vista</button>
+  </div>
+</div>
+<div class="info" id="info">
+  <h2>Model interactiu</h2>
+  <p class="hint">Arrossega per girar · roda per fer zoom · clic dret per desplaçar. Passa el cursor per sobre del diagrama per llegir el guany en cada direcció (θ, φ). Fes clic en un element o etiqueta per veure’n l’explicació.</p>
+</div>
+<div class="readout" id="readout">
+  <div>Direcció: <b id="rDir">θ = 60° · φ = 40°</b></div>
+  <div>Isotròpica: <b>G = 1 (0 dBi)</b> en totes les direccions</div>
+  <div class="dip">Dipol λ/2: <b id="rDip">—</b></div>
+  <div class="bar" id="bar"><div class="mark" id="mIso" title="Isotròpica"></div></div>
+  <div class="ticks" id="ticks"></div>
+  <div class="cap">Escala de colors: guany en dBi (radi = guany lineal)</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ---------- Renderer / escena ----------
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labels hidden'; // per defecte, sense etiquetes
+container.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// Unitats de l'escena: el radi R correspon a G = 1 (escala lineal de guany).
+// Eixos físics (x, y, z) amb z vertical → escena (X, Y, Z) = (x, z, −y)
+const R = 80, GROUND_Y = -118;
+const phys = (x, y, z) => new THREE.Vector3(x, z, -y);
+const dirOf = (theta, phi) => phys(Math.sin(theta) * Math.cos(phi), Math.sin(theta) * Math.sin(phi), Math.cos(theta));
+const DEG = Math.PI / 180;
+
+const camera = new THREE.PerspectiveCamera(35, 1, 5, 2000);
+const HOME_POS = phys(340, 250, 190);
+const HOME_TARGET = new THREE.Vector3(0, -6, 0);
+camera.position.copy(HOME_POS);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.copy(HOME_TARGET);
+controls.minDistance = 150;
+controls.maxDistance = 1200;
+controls.autoRotateSpeed = 1.2;
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.position.set(-160, 420, 140);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -230, right: 230, top: 230, bottom: -230, near: 10, far: 1000 });
+sun.shadow.bias = -0.0001;
+sun.shadow.normalBias = 0.25;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c0cc, 0.9));
+const fill = new THREE.DirectionalLight(0xffffff, 0.7);
+fill.position.set(200, 60, -180);
+scene.add(fill);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1800, 1800), new THREE.ShadowMaterial({ opacity: 0.12 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = GROUND_Y;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- Escala de colors (guany en dBi) ----------
+const DB_MIN = -20, DB_MAX = 3;
+const STOPS = [[0, '#30123b'], [0.22, '#4686fb'], [0.42, '#1ae4b6'], [0.62, '#a2fc3c'], [0.8, '#fbb938'], [1, '#d23105']]
+  .map(([t, c]) => [t, new THREE.Color(c)]);
+function cmap(db) {
+  const t = THREE.MathUtils.clamp((db - DB_MIN) / (DB_MAX - DB_MIN), 0, 1);
+  for (let i = 1; i < STOPS.length; i++) {
+    if (t <= STOPS[i][0]) {
+      const [t0, c0] = STOPS[i - 1], [t1, c1] = STOPS[i];
+      return c0.clone().lerp(c1, (t - t0) / (t1 - t0));
+    }
+  }
+  return STOPS[STOPS.length - 1][1].clone();
+}
+const toDb = g => 10 * Math.log10(g);
+// Dipol de mitja ona orientat segons z
+const gDipole = theta => {
+  const s = Math.sin(theta);
+  if (Math.abs(s) < 1e-6) return 0;
+  const f = Math.cos(Math.PI / 2 * Math.cos(theta)) / s;
+  return 1.641 * f * f;
+};
+
+// ---------- Materials ----------
+// Rendiment — només es processen els polígons visibles:
+//  · back-face culling: FrontSide a tots els sòlids
+//  · frustum culling: actiu per defecte a cada malla
+//  · oclusió: la font puntual (dins l'esfera opaca) només es dibuixa amb el tall o amb l'esfera translúcida;
+//    el farciment de secció només en mode tall
+const DS = THREE.FrontSide;
+const ISO_COLOR = cmap(0);
+const MAT = {
+  pattern: new THREE.MeshPhysicalMaterial({ color: ISO_COLOR, metalness: 0, roughness: 0.42, clearcoat: 0.4, clearcoatRoughness: 0.3, side: DS }),
+  dipole:  new THREE.MeshPhysicalMaterial({ color: 0xffffff, vertexColors: true, metalness: 0, roughness: 0.45, clearcoat: 0.3, side: DS }),
+  cut:     new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.5, side: DS }),
+  source:  new THREE.MeshStandardMaterial({ color: 0xfff2b0, emissive: 0xffc22e, emissiveIntensity: 1.2, roughness: 0.3, side: DS }),
+  arrow:   new THREE.MeshStandardMaterial({ color: 0xe8a33a, roughness: 0.4, metalness: 0.1, side: DS }),
+  dir:     new THREE.MeshStandardMaterial({ color: 0x1f4fbf, roughness: 0.35, side: DS }),
+  ax: {
+    x: new THREE.MeshStandardMaterial({ color: 0xc8352b, roughness: 0.4, side: DS }),
+    y: new THREE.MeshStandardMaterial({ color: 0x2f9a45, roughness: 0.4, side: DS }),
+    z: new THREE.MeshStandardMaterial({ color: 0x2a5cc8, roughness: 0.4, side: DS }),
+  },
+};
+const LINE = {
+  grid:  new THREE.LineBasicMaterial({ color: 0x5a3a12, transparent: true, opacity: 0.28 }),
+  polar: new THREE.LineBasicMaterial({ color: 0x7c8794, transparent: true, opacity: 0.55 }),
+  neg:   new THREE.LineDashedMaterial({ color: 0x7c8794, dashSize: 4, gapSize: 3 }),
+  dir:   new THREE.LineBasicMaterial({ color: 0x1f4fbf }),
+  proj:  new THREE.LineDashedMaterial({ color: 0x1f4fbf, dashSize: 3, gapSize: 2.5 }),
+};
+
+// ---------- Utilitats ----------
+const v2 = pts => {
+  const v = pts.map(([r, y]) => new THREE.Vector2(r, y));
+  if (!v[0].equals(v[v.length - 1])) v.push(v[0].clone());
+  return v;
+};
+const parts = {};
+const model = new THREE.Group();
+scene.add(model);
+function part(key, info) {
+  const group = new THREE.Group();
+  group.userData.key = key;
+  model.add(group);
+  parts[key] = { ...info, group };
+  return group;
+}
+function add(group, geometry, material, position = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(geometry, material.clone());
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+function line(group, points, material) {
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
+  if (material.isLineDashedMaterial) l.computeLineDistances();
+  group.add(l);
+  return l;
+}
+// Fletxa (cilindre + con) des de `from` en la direcció unitària `dir`
+function arrow(group, from, dir, length, radius, material, head = 3.2) {
+  const g = new THREE.Group();
+  const shaftLen = length - head * 2.6;
+  add(g, new THREE.CylinderGeometry(radius, radius, shaftLen, 16), material, [0, shaftLen / 2, 0]);
+  add(g, new THREE.ConeGeometry(head, head * 2.6 + 0.3, 20), material, [0, shaftLen + head * 1.3 - 0.15, 0]);
+  g.position.copy(from);
+  g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  group.add(g);
+  return g;
+}
+function tag(parent, text, position, cls = 'axl', color) {
+  const el = document.createElement('div');
+  el.className = cls;
+  el.textContent = text;
+  if (color) el.style.color = color;
+  const obj = new CSS2DObject(el);
+  obj.position.copy(position);
+  parent.add(obj);
+  tags.push(obj);
+  return obj;
+}
+const tags = [];
+
+// ---------- Diagrama isotròpic ----------
+const pattern = part('pattern', {
+  name: 'Diagrama de radiació isotròpic',
+  desc: 'La distància de cada punt de la superfície a l’origen és proporcional al guany en aquella direcció. Una antena isotròpica radia la mateixa intensitat en totes les direccions, U(θ, φ) = P<sub>rad</sub> / 4π, i per això el diagrama és una esfera. Directivitat D = 1 → 0 dBi en qualsevol direcció; no hi ha lòbuls, nuls ni amplada de feix.',
+  anchor: dirOf(38 * DEG, 200 * DEG).multiplyScalar(R + 2), left: true,
+});
+const sphere = add(pattern, new THREE.SphereGeometry(R, 128, 64), MAT.pattern);
+sphere.userData.pattern = 'iso';
+// Paral·lels i meridians cada 15° / 30°, just per sobre de la superfície (sense cares coplanàries)
+const RG = R + 0.45;
+for (let th = 15; th < 180; th += 15) {
+  const pts = [];
+  for (let p = 0; p <= 360; p += 3) pts.push(dirOf(th * DEG, p * DEG).multiplyScalar(RG));
+  line(pattern, pts, LINE.grid);
+}
+for (let p = 0; p < 360; p += 30) {
+  const pts = [];
+  for (let th = 0; th <= 180; th += 3) pts.push(dirOf(th * DEG, p * DEG).multiplyScalar(RG));
+  line(pattern, pts, LINE.grid);
+}
+
+// ---------- Talls principals ----------
+const cuts = part('cuts', {
+  name: 'Talls principals',
+  desc: 'Intersecció del diagrama amb els plans principals: pla horitzontal xy (θ = 90°, diagrama azimutal) i plans verticals xz (φ = 0°) i yz (φ = 90°), que donen els diagrames d’elevació. En una antena isotròpica els tres talls són circumferències: el diagrama polar 2D val 0 dB a tots els angles. Activa «Tall» per veure les seccions planes.',
+  anchor: dirOf(90 * DEG, 125 * DEG).multiplyScalar(R + 1.5), left: true,
+});
+const CUT_COLORS = [0x1b2430, 0x7a2a9a, 0x0f7c7c];
+const cutCurves = [
+  t => dirOf(90 * DEG, t),   // pla xy
+  t => dirOf(t, 0),          // pla xz (φ = 0° i 180°)
+  t => dirOf(t, 90 * DEG),   // pla yz (φ = 90° i 270°)
+];
+cutCurves.forEach((f, i) => {
+  const curve = new THREE.CatmullRomCurve3(Array.from({ length: 144 }, (_, k) => f(k / 144 * 2 * Math.PI).multiplyScalar(R + 0.25)), true);
+  const m = MAT.cut.clone(); m.color.set(CUT_COLORS[i]);
+  add(cuts, new THREE.TubeGeometry(curve, 288, 0.75, 10, true), m);
+});
+
+// ---------- Font puntual ----------
+const source = part('source', {
+  name: 'Radiador isotròpic (font puntual)',
+  desc: 'Font ideal sense dimensions situada a l’origen. És un model teòric: cap antena real no radia exactament igual en totes les direccions amb una polarització uniforme, perquè el camp llunyà és tangent a l’esfera i no es pot fer sense anul·lar-se en algun punt (teorema de la bola peluda). Serveix de referència: el guany en dBi d’una antena real es mesura respecte d’aquesta font.',
+  anchor: new THREE.Vector3(0, 6, 0), hideUnlessInside: true,
+});
+add(source, new THREE.SphereGeometry(4, 32, 16), MAT.source);
+// Rajos radials curts (6 direccions), tots iguals
+for (const d of [phys(1, 0, 0), phys(-1, 0, 0), phys(0, 1, 0), phys(0, -1, 0), phys(0, 0, 1), phys(0, 0, -1)]) {
+  arrow(source, d.clone().multiplyScalar(5), d, 20, 0.7, MAT.arrow, 2);
+}
+
+// ---------- Eixos i pla horitzontal ----------
+const axes = part('axes', {
+  name: 'Coordenades esfèriques (θ, φ)',
+  desc: 'θ és l’angle mesurat des de l’eix z (zenit, de 0° a 180°) i φ l’angle azimutal en el pla xy, des de l’eix x (de 0° a 360°). La fletxa blava marca la direcció consultada; el lector inferior en dona el guany. La graella del pla xy té anells a G = 0,5, 1 i 1,5 (escala lineal) i radis cada 30°.',
+  anchor: phys(0, 0, 1).multiplyScalar(R * 1.55), left: false,
+});
+const AX_LEN = R * 1.75;
+for (const [k, d] of [['x', phys(1, 0, 0)], ['y', phys(0, 1, 0)], ['z', phys(0, 0, 1)]]) {
+  arrow(axes, new THREE.Vector3(), d, AX_LEN, 0.85, MAT.ax[k], 3.2);
+  line(axes, [new THREE.Vector3(), d.clone().multiplyScalar(-R * 1.3)], LINE.neg);
+  tag(model, k, d.clone().multiplyScalar(AX_LEN + 9), 'axl', '#' + MAT.ax[k].color.getHexString());
+}
+for (const g of [0.5, 1, 1.5]) {
+  const pts = [];
+  for (let p = 0; p <= 360; p += 2) pts.push(dirOf(90 * DEG, p * DEG).multiplyScalar(R * g));
+  line(axes, pts, LINE.polar);
+}
+for (let p = 0; p < 360; p += 30) {
+  const d = dirOf(90 * DEG, p * DEG);
+  line(axes, [d.clone().multiplyScalar(R * 0.1), d.clone().multiplyScalar(R * 1.55)], LINE.polar);
+  if (p % 90 && p !== 0) tag(model, p + '°', d.clone().multiplyScalar(R * 1.66), 'axl small');
+}
+tag(model, 'G = 1,5', dirOf(90 * DEG, -12 * DEG).multiplyScalar(R * 1.5).add(new THREE.Vector3(0, 4, 0)), 'axl small');
+
+// ---------- Direcció consultada (θ, φ) ----------
+const dirGroup = new THREE.Group();
+axes.add(dirGroup);
+const RA = R * 1.22;
+const dirArrow = arrow(dirGroup, new THREE.Vector3(), new THREE.Vector3(0, 1, 0), R * 1.5, 0.9, MAT.dir, 2.8);
+const isoDot = add(dirGroup, new THREE.SphereGeometry(2.3, 24, 12), MAT.dir);
+const dipDot = add(dirGroup, new THREE.SphereGeometry(2.3, 24, 12), MAT.dir);
+let arcTheta = null, arcPhi = null, projLines = [];
+const thetaTag = tag(model, 'θ', new THREE.Vector3(), 'axl', '#1f4fbf');
+const phiTag = tag(model, 'φ', new THREE.Vector3(), 'axl', '#1f4fbf');
+const view = { theta: 60 * DEG, phi: 40 * DEG };
+function setDirection(theta, phi) {
+  view.theta = theta; view.phi = phi;
+  const d = dirOf(theta, phi);
+  dirArrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+  isoDot.position.copy(d).multiplyScalar(R);
+  const gd = gDipole(theta);
+  dipDot.position.copy(d).multiplyScalar(R * gd);
+  dipDot.visible = state.dipole && gd > 0.02;
+  for (const o of [arcTheta, arcPhi, ...projLines]) if (o) { o.geometry.dispose(); dirGroup.remove(o); }
+  const n = 48;
+  arcTheta = line(dirGroup, Array.from({ length: n + 1 }, (_, i) => dirOf(theta * i / n, phi).multiplyScalar(RA)), LINE.dir);
+  arcPhi = line(dirGroup, Array.from({ length: n + 1 }, (_, i) => dirOf(90 * DEG, phi * i / n).multiplyScalar(RA)), LINE.dir);
+  const tip = d.clone().multiplyScalar(RA);
+  const foot = dirOf(90 * DEG, phi).multiplyScalar(RA * Math.sin(theta));
+  projLines = [line(dirGroup, [tip, foot], LINE.proj), line(dirGroup, [new THREE.Vector3(), foot], LINE.proj)];
+  for (const o of [arcTheta, arcPhi, ...projLines]) applyClip(o.material);
+  thetaTag.position.copy(dirOf(theta / 2, phi).multiplyScalar(RA + 8));
+  phiTag.position.copy(dirOf(90 * DEG, phi / 2).multiplyScalar(RA + 8));
+  document.getElementById('rDir').textContent = `θ = ${Math.round(theta / DEG)}° · φ = ${Math.round(phi / DEG)}°`;
+  document.getElementById('rDip').textContent = gd < 1e-4 ? 'G = 0 (nul, −∞ dBi)'
+    : `G = ${gd.toFixed(2).replace('.', ',')} (${toDb(gd).toFixed(1).replace('.', ',').replace('-', '−')} dBi)`;
+}
+
+// ---------- Vectors de Poynting ----------
+const poynting = part('poynting', {
+  name: 'Densitat de potència (vector de Poynting)',
+  desc: 'La potència surt radialment i amb la mateixa densitat en totes les direccions: S(r) = P<sub>rad</sub> / (4π r²). Disminueix amb 1/r² perquè la mateixa potència es reparteix sobre una esfera d’àrea 4πr². Exemple: a 1 km d’una font isotròpica d’1 W, S ≈ 80 nW/m².',
+  anchor: dirOf(20 * DEG, 80 * DEG).multiplyScalar(R + 30),
+});
+const arrows = [];
+const NA = 40, GOLD = Math.PI * (3 - Math.sqrt(5));
+for (let i = 0; i < NA; i++) {
+  const z = 1 - 2 * (i + 0.5) / NA, r = Math.sqrt(1 - z * z);
+  const d = phys(r * Math.cos(GOLD * i), r * Math.sin(GOLD * i), z);
+  arrows.push({ d, obj: arrow(poynting, d.clone().multiplyScalar(R + 3), d, 20, 0.75, MAT.arrow, 2.3) });
+}
+
+// ---------- Dipol λ/2 (comparació) ----------
+const dipole = part('dipole', {
+  name: 'Dipol λ/2 (comparació)',
+  desc: 'Diagrama de guany d’un dipol de mitja ona orientat segons z, a la mateixa escala lineal: G(θ) = 1,64 · [cos(π/2 · cos θ) / sin θ]². Surt de l’esfera prop del pla horitzontal (màxim 2,15 dBi a θ = 90°) i té nuls als eixos (θ = 0° i 180°); no depèn de φ. La mitjana de G sobre totes les direccions és 1 en tots dos casos: el que es guanya en unes direccions es perd en d’altres.',
+  anchor: dirOf(90 * DEG, 250 * DEG).multiplyScalar(R * 1.64 + 2), left: true,
+});
+{
+  const prof = [];
+  for (let i = 0; i <= 180; i++) {
+    const th = Math.PI - i * DEG; // de baix (θ = 180°) a dalt (θ = 0°): perfil antihorari → normals cap enfora
+    const g = gDipole(th) * R;
+    prof.push([g * Math.sin(th), g * Math.cos(th)]);
+  }
+  prof[0] = [0, 0]; prof[prof.length - 1] = [0, 0];
+  const geo = new THREE.LatheGeometry(v2(prof), 128);
+  const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), zz = pos.getZ(i);
+    const th = Math.atan2(Math.hypot(x, zz), y);
+    const c = cmap(toDb(Math.max(gDipole(th), 1e-4)));
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = add(dipole, geo, MAT.dipole);
+  m.userData.pattern = 'dip';
+}
+
+// ---------- Etiquetes ----------
+const labelEls = {};
+for (const [key, p] of Object.entries(parts)) {
+  const el = document.createElement('div');
+  el.className = 'lbl' + (p.left ? ' left' : '');
+  el.innerHTML = `<span class="dot"></span><span class="txt">${p.name}</span>`;
+  el.addEventListener('pointerdown', e => { e.stopPropagation(); select(key); });
+  const obj = new CSS2DObject(el);
+  obj.position.copy(p.anchor);
+  model.add(obj); // a «model»: CSS2DRenderer no hereta la visibilitat del grup
+  p.label = obj;
+  labelEls[key] = el;
+}
+
+// ---------- Estat i interacció ----------
+const state = { labels: false, cut: false, vectors: false, dipole: false, selected: null };
+// Tall d'un quadrant (x > 0, y > 0): es veuen alhora les seccions dels plans xz i yz
+const cutPlanes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0), new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)];
+const inRemovedQuadrant = p => p.x > 0.01 && p.z < -0.01;
+function applyClip(material) {
+  material.clippingPlanes = state.cut ? cutPlanes : null;
+  material.clipIntersection = true;
+  material.needsUpdate = true;
+}
+const allMeshes = [];
+model.traverse(o => { if (o.isMesh) { allMeshes.push(o); let p = o.parent; while (p && !p.userData.key) p = p.parent; o.userData.key = p?.userData.key; } });
+const dirMeshes = new Set();
+dirGroup.traverse(o => o.isMesh && dirMeshes.add(o));
+
+// Farciment de secció: les cares posteriors de cada sòlid es pinten en color pla quan hi ha tall
+for (const m of allMeshes) {
+  if (m.material.transparent || !m.material.color) continue;
+  const mat = new THREE.MeshBasicMaterial({ color: m.material.color.clone().multiplyScalar(0.62), vertexColors: m.material.vertexColors,
+    side: THREE.BackSide, clippingPlanes: cutPlanes, clipIntersection: true });
+  const sec = new THREE.Mesh(m.geometry, mat);
+  sec.visible = false;
+  sec.userData.key = m.userData.key;
+  m.add(sec);
+  m.userData.section = sec;
+}
+for (const m of allMeshes) if (m.material.emissive) m.userData.emissive = [m.material.emissive.clone(), m.material.emissiveIntensity];
+
+const infoEl = document.getElementById('info');
+const DEFAULT_INFO = infoEl.innerHTML;
+let helpDismissed = false; // un clic sobre el panell l'amaga; l'ajuda inicial ja no torna a sortir
+
+function select(key) {
+  state.selected = state.selected === key ? null : key;
+  for (const m of allMeshes) {
+    const on = state.selected && m.userData.key === state.selected;
+    if (!m.userData.emissive) continue;
+    const [base, intensity] = m.userData.emissive;
+    m.material.emissive.copy(on ? new THREE.Color(0x1f4fbf) : base);
+    m.material.emissiveIntensity = on ? 0.35 : intensity;
+  }
+  for (const [k, el] of Object.entries(labelEls)) el.classList.toggle('sel', k === state.selected);
+  const p = parts[state.selected];
+  infoEl.innerHTML = p ? `<h2>${p.name}</h2><p>${p.desc}</p>` : DEFAULT_INFO;
+  infoEl.classList.toggle('hidden', !p && helpDismissed);
+}
+infoEl.addEventListener('click', () => {
+  helpDismissed = true;
+  if (state.selected) select(state.selected);
+  infoEl.classList.add('hidden');
+});
+
+const isShown = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+function pick(e, meshes) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  return ray.intersectObjects(meshes, false).find(h => isShown(h.object) && !dirMeshes.has(h.object) && !(state.cut && inRemovedQuadrant(h.point)));
+}
+function directionFromHit(hit) {
+  const p = hit.point, x = p.x, y = -p.z, z = p.y;
+  const theta = Math.acos(THREE.MathUtils.clamp(z / Math.hypot(x, y, z), -1, 1));
+  let phi = Math.atan2(y, x); if (phi < 0) phi += 2 * Math.PI;
+  setDirection(theta, phi);
+}
+const patternMeshes = allMeshes.filter(m => m.userData.pattern);
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointermove', e => {
+  if (e.buttons || e.pointerType === 'touch') return;
+  const hit = pick(e, patternMeshes);
+  if (hit) directionFromHit(hit);
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  const hit = pick(e, allMeshes);
+  if (hit) {
+    if (hit.object.userData.pattern) directionFromHit(hit);
+    select(hit.object.userData.key);
+  } else if (state.selected) select(state.selected);
+});
+
+const $ = id => document.getElementById(id);
+$('bLabels').onclick = () => { state.labels = !state.labels; $('bLabels').classList.toggle('on', state.labels); labelRenderer.domElement.classList.toggle('hidden', !state.labels); };
+$('bCut').onclick = () => {
+  state.cut = !state.cut;
+  $('bCut').classList.toggle('on', state.cut);
+  model.traverse(o => { if (o.material && !o.userData.isSection) applyClip(o.material); });
+  for (const m of allMeshes) if (m.userData.section) m.userData.section.visible = state.cut;
+  refresh();
+};
+$('bVectors').onclick = () => { state.vectors = !state.vectors; $('bVectors').classList.toggle('on', state.vectors); refresh(); };
+$('bDipole').onclick = () => {
+  state.dipole = !state.dipole;
+  $('bDipole').classList.toggle('on', state.dipole);
+  $('readout').classList.toggle('dipole', state.dipole);
+  // Amb el dipol, l'esfera passa a translúcida per veure'l a dins i a fora
+  const m = sphere.material;
+  m.transparent = state.dipole; m.opacity = state.dipole ? 0.22 : 1; m.depthWrite = !state.dipole; m.needsUpdate = true;
+  sphere.castShadow = !state.dipole;
+  setDirection(view.theta, view.phi);
+  refresh();
+};
+$('bRotate').onclick = () => { controls.autoRotate = !controls.autoRotate; $('bRotate').classList.toggle('on', controls.autoRotate); };
+$('bReset').onclick = () => { camera.position.copy(HOME_POS); controls.target.copy(HOME_TARGET); controls.update(); };
+for (const m of allMeshes) if (m.userData.section) m.userData.section.userData.isSection = true;
+
+function refresh() {
+  const interiorVisible = state.cut || state.dipole;
+  source.visible = interiorVisible; // oclusió: dins l'esfera opaca no es veu, no es processa
+  parts.source.label.visible = interiorVisible;
+  poynting.visible = parts.poynting.label.visible = state.vectors;
+  dipole.visible = parts.dipole.label.visible = state.dipole;
+  if (sphere.userData.section) sphere.userData.section.visible = state.cut && !state.dipole;
+  if (!dipole.visible && state.selected === 'dipole') select('dipole');
+  if (!poynting.visible && state.selected === 'poynting') select('poynting');
+}
+
+// Barra de colors
+{
+  const pct = db => ((db - DB_MIN) / (DB_MAX - DB_MIN) * 100).toFixed(2) + '%';
+  $('bar').style.background = 'linear-gradient(90deg,' + STOPS.map(([t, c]) => `#${c.getHexString()} ${(t * 100).toFixed(1)}%`).join(',') + ')';
+  $('mIso').style.left = pct(0);
+  $('ticks').innerHTML = [-20, -10, 0, 3].map(db => `<span style="left:${pct(db)}">${db > 0 ? '+' : db < 0 ? '−' : ''}${Math.abs(db)}</span>`).join('');
+}
+
+setDirection(view.theta, view.phi);
+refresh();
+const q = new URLSearchParams(location.search);
+if (q.has('tall')) $('bCut').click();
+if (q.has('vectors')) $('bVectors').click();
+if (q.has('dipol')) $('bDipole').click();
+if (q.has('etiquetes')) $('bLabels').click();
+
+// ---------- Bucle ----------
+function resize() {
+  const w = container.clientWidth, h = container.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.fov = w / h < 1 ? 35 / Math.max(w / h, 0.55) : 35;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(container);
+resize();
+
+const clock = new THREE.Clock();
+const tagRay = new THREE.Ray(), tagPos = new THREE.Vector3(), tagHit = new THREE.Vector3(), tagSphere = new THREE.Sphere(new THREE.Vector3(), R);
+renderer.setAnimationLoop(() => {
+  const t = clock.getElapsedTime();
+  if (state.vectors) {
+    // Els vectors S avancen radialment: la potència flueix cap enfora igual en totes les direccions
+    const k = (t * 0.6) % 1;
+    for (const a of arrows) {
+      a.obj.position.copy(a.d).multiplyScalar(R + 3 + k * 16);
+      a.obj.scale.setScalar(1 - 0.35 * k);
+    }
+  }
+  if (source.visible) source.children[0].scale.setScalar(1 + 0.12 * Math.sin(t * 4));
+  controls.update();
+  // Les anotacions que queden darrere l'esfera opaca s'amaguen (CSS2D no té test de profunditat)
+  const opaque = !state.cut && !state.dipole;
+  for (const o of tags) {
+    let hidden = false;
+    if (opaque) {
+      o.getWorldPosition(tagPos);
+      tagRay.origin.copy(camera.position);
+      tagRay.direction.copy(tagPos).sub(camera.position);
+      const dist = tagRay.direction.length();
+      tagRay.direction.divideScalar(dist);
+      hidden = tagRay.intersectSphere(tagSphere, tagHit) !== null && camera.position.distanceTo(tagHit) < dist - 2;
+    }
+    o.visible = !hidden;
+  }
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

@@ -12,8 +12,11 @@ Los modelos están en catalán.
 | Descarregador RF HUBER+SUHNER 3409.41.0081 | https://ddelapaz1.github.io/0365-artifacts/descarregador-rf-huber-suhner-3409.41.0081-ca.html |
 | Acoblador híbrid 3 dB KATHREIN 793554 | https://ddelapaz1.github.io/0365-artifacts/acoblador-hibrid-kathrein-793554-ca.html |
 | Diplexor KATHREIN 78210620 | https://ddelapaz1.github.io/0365-artifacts/diplexor-kathrein-78210620-ca.html |
+| Diagrama de radiació d’una antena isotròpica | https://ddelapaz1.github.io/0365-artifacts/diagrama-radiacio-antena-isotropica-ca.html |
 
 El diplexor sigue las cotas de las vistas aportadas: carcasa de 199 × 199 × 48 mm, ancho total con soportes de 315 mm y altura montada de 66,25 mm. La posición y numeración de sus tres puertos siguen la vista superior. El corte muestra un interior didáctico, no una reproducción de la construcción interna del fabricante; los detalles exteriores no acotados también son aproximados.
+
+El diagrama de radiación de la antena isotrópica es una esfera de radio proporcional a la ganancia lineal (G = 1, 0 dBi). Al pasar el cursor se lee la ganancia en cada dirección (θ, φ). No tiene despiece; sus parámetros propios son `?tall` (corte de un cuadrante: planos xz e yz), `?vectors` (vectores de Poynting) y `?dipol` (comparación con un dipolo λ/2 a la misma escala).
 
 ## Cómo incrustar en Notion
 

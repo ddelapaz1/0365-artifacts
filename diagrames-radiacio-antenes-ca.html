@@ -244,6 +244,10 @@ const YAGI = {
   4: { xs: [-0.2, 0, 0.2, 0.45], amps: [0.8, 1, 0.75, 0.7], delta: 0.3, len: [0.5, 0.47, 0.44, 0.43] },
   6: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05], amps: [0.7, 1, 0.75, 0.7, 0.65, 0.6], delta: 0.2, len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41] },
   9: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05, 1.4, 1.75, 2.1], amps: [0.6, 1, 0.8, 0.78, 0.76, 0.74, 0.72, 0.7, 0.68], delta: 0.14, len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41, 0.40, 0.40, 0.39] },
+  12: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05, 1.4, 1.75, 2.1, 2.5, 2.9, 3.3], amps: [0.6, 1, 0.8, 0.78, 0.76, 0.74, 0.72, 0.7, 0.68, 0.66, 0.64, 0.62], delta: 0.1,
+    len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41, 0.40, 0.40, 0.39, 0.39, 0.39, 0.38] },
+  15: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05, 1.4, 1.75, 2.1, 2.5, 2.9, 3.3, 3.7, 4.1, 4.5], amps: [0.8, 1, 0.8, 0.78, 0.76, 0.74, 0.72, 0.7, 0.68, 0.66, 0.64, 0.62, 0.6, 0.58, 0.56], delta: 0.07,
+    len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41, 0.40, 0.40, 0.39, 0.39, 0.39, 0.38, 0.38, 0.38, 0.38] },
 };
 const env465 = a => a < 48 ? 32 - 25 * Math.log10(a) : -10;              // ITU-R S.465 (estació terrena)
 const envMiniLink = a => Math.max(29 - 25 * Math.log10(a), -22);        // antena d'alt rendiment amb faldó
@@ -265,6 +269,8 @@ const ANT = {
   'yagi-4': { family: 'yagi', variant: '4 elements', name: 'Yagi-Uda de 4 elements', short: 'Yagi 4 el.', yagi: 4, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
   'yagi-6': { family: 'yagi', variant: '6 elements', name: 'Yagi-Uda de 6 elements', short: 'Yagi 6 el.', yagi: 6, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
   'yagi-9': { family: 'yagi', variant: '9 elements', name: 'Yagi-Uda de 9 elements', short: 'Yagi 9 el.', yagi: 9, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
+  'yagi-12': { family: 'yagi', variant: '12 elements', name: 'Yagi-Uda de 12 elements', short: 'Yagi 12 el.', yagi: 12, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
+  'yagi-15': { family: 'yagi', variant: '15 elements', name: 'Yagi-Uda de 15 elements', short: 'Yagi 15 el.', yagi: 15, eff: 0.97, band: 'VHF/UHF (exemple)', pol: 'Vertical', desc: YAGI_DESC },
   sectorial: {
     family: 'sectorial', name: 'Panell sectorial 90° × 7°', short: 'Sectorial', f: sectorF, gain: 17,
     band: '1,7–2,7 GHz (mòbil / Wi-Fi)', pol: 'Vertical (o ±45°)',
@@ -668,7 +674,7 @@ const MODELS = {
     rod(g, phys(-1.2, 0, 0), phys(-16, 0, 0), 0.5, MAT.dark);
   },
   yagi(g, a) {
-    const y = YAGI[a.yagi], L = a.yagi > 6 ? 34 : 46, mid = (y.xs[0] + y.xs.at(-1)) / 2 * L;
+    const y = YAGI[a.yagi], L = Math.min(46, 115 / (y.xs.at(-1) - y.xs[0])), mid = (y.xs[0] + y.xs.at(-1)) / 2 * L;
     rod(g, phys(y.xs[0] * L - mid - 4, 0, 0), phys(y.xs.at(-1) * L - mid + 4, 0, 0), 1.0, MAT.alu);
     y.xs.forEach((x, n) => {
       const X = x * L - mid, h = y.len[n] * L / 2;

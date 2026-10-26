@@ -38,13 +38,16 @@
   .btns button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
   .polar { position:absolute; top:58px; right:14px; padding:8px 10px 6px; display:flex; gap:10px; }
   .polar.hidden { display:none; }
-  .polar figure { margin:0; text-align:center; }
-  .polar figcaption { font-size:12.5px; font-weight:600; margin-bottom:2px; }
-  .polar canvas { width:min(40vh, 26vw); height:min(40vh, 26vw); min-width:150px; min-height:150px; display:block; }
+  /* Mida fixa segons la pantalla: el text del cursor no ha de canviar l'amplada del panell */
+  .polar { --pw:max(150px, min(40vh, 26vw)); }
+  .polar figure { margin:0; text-align:center; width:var(--pw); flex:none; }
+  .polar figcaption { font-size:12.5px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .polar canvas { width:var(--pw); height:var(--pw); display:block; }
   .polar .pw { position:relative; }
   .polar canvas.ov { position:absolute; inset:0; pointer-events:none; }
   .polar .leg b { color:var(--accent); }
-  .polar .leg { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .polar .leg { font-size:11.5px; color:var(--muted); margin-top:2px; line-height:1.4; font-variant-numeric:tabular-nums; }
+  .polar .leg span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .info { position:absolute; left:14px; bottom:14px; max-width:min(420px, calc(100% - 300px)); padding:12px 14px; font-size:13px; line-height:1.45; cursor:pointer; }
   .info.hidden { display:none; }
   .info h2 { font-size:14px; margin:0 0 4px; color:var(--accent); }
@@ -70,7 +73,7 @@
   @media(max-width:860px) {
     .side { width:262px; padding:8px 10px; } .side h1 { font-size:13px; } .side .sub { font-size:10.5px; }
     .chip { font-size:11px; padding:4px 7px; } .btns { max-width:calc(100% - 290px); } .btns button { padding:6px 8px; font-size:11px; }
-    .polar canvas { width:min(40vh, 34vw); height:min(40vh, 34vw); } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
+    .polar { --pw:max(130px, min(40vh, 34vw)); } .info { max-width:calc(100% - 28px); bottom:130px; font-size:12px; }
     .readout { width:240px; }
   }
   @media(max-width:600px) {
@@ -111,8 +114,8 @@
   <button id="bReset">Reinicia la vista</button>
 </div>
 <div class="polar card" id="polar">
-  <figure><figcaption style="color:var(--h)">Pla horitzontal (xy)</figcaption><div class="pw"><canvas id="cH"></canvas><canvas id="oH" class="ov"></canvas></div><div class="leg">vista superior · θ = 90° · <b id="lH">φ = —</b></div></figure>
-  <figure><figcaption style="color:var(--v)">Pla vertical (xz)</figcaption><div class="pw"><canvas id="cV"></canvas><canvas id="oV" class="ov"></canvas></div><div class="leg">vista lateral · φ = 0°/180° · <b id="lV">θ = —</b></div></figure>
+  <figure><figcaption style="color:var(--h)">Pla horitzontal (xy)</figcaption><div class="pw"><canvas id="cH"></canvas><canvas id="oH" class="ov"></canvas></div><div class="leg"><span>vista superior · θ = 90°</span><span><b id="lH">φ = —</b></span></div></figure>
+  <figure><figcaption style="color:var(--v)">Pla vertical (xz)</figcaption><div class="pw"><canvas id="cV"></canvas><canvas id="oV" class="ov"></canvas></div><div class="leg"><span>vista lateral · φ = 0°/180°</span><span><b id="lV">θ = —</b></span></div></figure>
 </div>
 <div class="info card" id="info">
   <h2>Model interactiu</h2>

@@ -219,10 +219,17 @@ function hornF(a, b) {
     return Math.max(f, lin(-34) * (0.6 + 0.4 * Math.cos(5 * Math.acos(x)) ** 2));
   };
 }
-// Parabòlica: obertura circular de diàmetre Dλ (λ), il·luminació parabòlica sobre graó C (nivell de vora),
-// més l'envolupant de lòbuls llunyans de la norma (dBi): env(α) en graus
-function dishF(Dl, C, Gnom, env, alphaMin) {
+// Parabòlica: obertura circular de diàmetre Dλ (λ), il·luminació parabòlica sobre graó C (nivell de vora).
+// Fora del feix (dBi, α en graus), tres mecanismes físics diferents:
+//  · far.front(α): envolupant dels lòbuls laterals de l'hemisferi davanter, amb arrissat real a sota;
+//  · far.rear(α): nivell suau de la zona lateral i posterior (vessament de l'alimentador més enllà de la vora
+//    i ombra del reflector): aquí ja no hi ha una sèrie de lòbuls com al davant;
+//  · far.back: pic del lòbul posterior axial (α = 180°), difracció coherent a la vora circular: anell de
+//    diàmetre D → |J0(πDλ sin ψ)|², ψ = 180° − α (Knop 1976; ITU-R S.1428-1: G(120°–180°) constant).
+const smooth01 = (a, a0, a1) => { const t = Math.min(Math.max((a - a0) / (a1 - a0), 0), 1); return t * t * (3 - 2 * t); };
+function dishF(Dl, C, Gnom, far, alphaMin) {
   const k0 = Math.PI * Dl, norm = C + (1 - C) / 2;
+  const backFloor = lin(far.rear(180)), backPk = Math.max(lin(far.back) - backFloor, 0);
   return alpha => {
     const s = Math.sin(Math.min(alpha, Math.PI / 2));
     const u = k0 * s;
@@ -230,10 +237,13 @@ function dishF(Dl, C, Gnom, env, alphaMin) {
     const gAp = Gnom + db(ap * ap);
     const a = alpha / D2R;
     if (a < alphaMin) return lin(gAp);
-    // arrissat sota l'envolupant: lòbuls reals (dues vegades per lòbul fins a 20°, després més lent)
+    // arrissat sota l'envolupant davantera: lòbuls reals (dues vegades per lòbul fins a 20°, després més lent)
     const w = a < 20 ? u : k0 * Math.sin(20 * D2R) + (a - 20) * D2R * 30;
-    const gFar = env(a) + db(0.12 + 0.88 * Math.sin(w) ** 2) - 1;
-    return lin(Math.max(gAp, gFar));
+    const front = lin(far.front(a) + db(0.12 + 0.88 * Math.sin(w) ** 2) - 1);
+    const t = smooth01(a, 70, 95); // 0: hemisferi davanter, 1: zona de vessament i ombra
+    const j0 = besselJ0(k0 * Math.sin(Math.PI - alpha));
+    const gFar = (1 - t) * front + t * lin(far.rear(a)) + backPk * j0 * j0;
+    return Math.max(lin(gAp), gFar);
   };
 }
 // ===== ANTENNA-PHYSICS-END =====
@@ -252,8 +262,21 @@ const YAGI = {
   15: { xs: [-0.2, 0, 0.2, 0.45, 0.75, 1.05, 1.4, 1.75, 2.1, 2.5, 2.9, 3.3, 3.7, 4.1, 4.5], amps: [0.8, 1, 0.8, 0.78, 0.76, 0.74, 0.72, 0.7, 0.68, 0.66, 0.64, 0.62, 0.6, 0.58, 0.56], delta: 0.07,
     len: [0.5, 0.47, 0.44, 0.43, 0.42, 0.41, 0.40, 0.40, 0.39, 0.39, 0.39, 0.38, 0.38, 0.38, 0.38] },
 };
-const env465 = a => a < 48 ? 32 - 25 * Math.log10(a) : -10;              // ITU-R S.465 (estació terrena)
-const envMiniLink = a => Math.max(29 - 25 * Math.log10(a), -22);        // antena d'alt rendiment amb faldó
+// Satèl·lit, 25 < D/λ ≤ 100: ITU-R S.1428-1 (patró de referència coherent amb la teoria i les mesures, de 0° a 180°):
+// 29 − 25 log φ fins a 33,1°; −9 dBi fins a 80°; vessament −4 dBi (80°–120°); −9 dBi (120°–180°), que aquí es
+// reparteix entre l'ombra del reflector (−13 dBi) i el lòbul posterior axial (−9 dBi → F/B ≈ 47 dB).
+const farSat = {
+  front: a => a < 33.1 ? 29 - 25 * Math.log10(a) : -9,
+  rear: a => -9 + 5 * smooth01(a, 80, 92) - 9 * smooth01(a, 110, 135),
+  back: -9,
+};
+// Radioenllaç d'alt rendiment amb faldó absorbent: el faldó elimina el vessament i el lòbul posterior queda
+// a F/B ≈ 64 dB (catàlegs de 0,6 m a 23 GHz: 62–66 dB)
+const farMiniLink = {
+  front: a => Math.max(29 - 25 * Math.log10(a), -22),
+  rear: a => -22 - 6 * smooth01(a, 95, 130),
+  back: -24,
+};
 const YAGI_DESC = 'Dipol alimentat + reflector (darrere) + directors (davant), paral·lels sobre un boom. Els elements paràsits s’exciten per acoblament i les corrents formen una ona lenta que reforça la radiació cap als directors (radiació longitudinal o <i>end-fire</i>). Cada director afegit estreny el feix i augmenta el guany, però cada cop menys. Model: factor d’agrupació amb corrents d’ona lenta × diagrama del dipol; elements verticals (polarització vertical).';
 const ANT = {
   isotropica: {
@@ -282,14 +305,14 @@ const ANT = {
   },
   'parabolica-satellit': {
     family: 'parabolica', variant: 'Satèl·lit (80 cm, Ku)', name: 'Parabòlica de satèl·lit 80 cm', short: 'Parab. satèl·lit',
-    sym: dishF(0.8 / 0.02564, 0.25, 38, env465, 2.7), gain: 38, band: 'Ku 10,7–12,75 GHz (11,7 GHz)', pol: 'Lineal H/V (LNB)',
-    desc: 'Parabòlica de recepció de TV per satèl·lit en banda Ku, de 80 cm, tipus offset (l’LNB queda fora del feix i no fa ombra). A 11,7 GHz: G ≈ 38 dBi (catàlegs: 37,3–38,2 dBi) i feix d’uns 2,2°, per això cal apuntar-la amb precisió (des de Catalunya, Astra 19,2° E amb una elevació d’uns 38°; aquí el feix es dibuixa horitzontal per poder comparar). Lòbuls propers calculats amb la teoria d’obertura (il·luminació parabòlica sobre graó); lòbuls llunyans segons l’envolupant de referència ITU-R S.465 (32 − 25 log φ dBi).',
+    sym: dishF(0.8 / 0.02564, 0.25, 38, farSat, 2.7), gain: 38, band: 'Ku 10,7–12,75 GHz (11,7 GHz)', pol: 'Lineal H/V (LNB)',
+    desc: 'Parabòlica de recepció de TV per satèl·lit en banda Ku, de 80 cm, tipus offset (l’LNB queda fora del feix i no fa ombra). A 11,7 GHz: G ≈ 38 dBi (catàlegs: 37,3–38,2 dBi) i feix d’uns 2,2°, per això cal apuntar-la amb precisió (des de Catalunya, Astra 19,2° E amb una elevació d’uns 38°; aquí el feix es dibuixa horitzontal per poder comparar). Lòbuls propers calculats amb la teoria d’obertura (il·luminació parabòlica sobre graó); lòbuls llunyans segons el diagrama de referència ITU-R S.1428-1 (29 − 25 log φ dBi). El reflector fa ombra però no és un blindatge perfecte: al voltant de 80°–120° hi arriba el vessament (<i>spillover</i>) de l’LNB que passa per fora de la vora, i darrere hi ha un nivell baix i suau amb un lòbul posterior axial estret, degut a la difracció a la vora circular, a −9 dBi (F/B ≈ 47 dB: unes 50 000 vegades menys potència que al davant).',
     hw: 'Reflector parabòlic de 80 cm amb el braç i l’LNB (amplificador i convertidor de baix soroll) al focus; suport al pal.',
   },
   'parabolica-minilink': {
     family: 'parabolica', variant: 'Radioenllaç MINI-LINK (0,6 m, 23 GHz)', name: 'Parabòlica de radioenllaç 0,6 m (MINI-LINK)', short: 'Parab. MINI-LINK',
-    sym: dishF(0.6 / 0.01304, 0, 40, envMiniLink, 2), gain: 40, band: '23 GHz (radioenllaç)', pol: 'Lineal V o H',
-    desc: 'Antena de radioenllaç punt a punt tipus Ericsson MINI-LINK: parabòlica de 0,6 m a 23 GHz amb faldó (<i>shroud</i>) i radome, acoblada directament a la unitat de ràdio exterior (ODU). G ≈ 40 dBi i feix d’uns 1,5° (catàlegs de 0,6 m a 23 GHz: 39–41 dBi, 1,3–1,7°): els dos extrems s’alineen amb visió directa. El faldó absorbent redueix molt els lòbuls laterals i posteriors (antena d’alt rendiment, F/B > 60 dB) per poder reutilitzar freqüències amb altres enllaços del mateix emplaçament.',
+    sym: dishF(0.6 / 0.01304, 0, 40, farMiniLink, 2), gain: 40, band: '23 GHz (radioenllaç)', pol: 'Lineal V o H',
+    desc: 'Antena de radioenllaç punt a punt tipus Ericsson MINI-LINK: parabòlica de 0,6 m a 23 GHz amb faldó (<i>shroud</i>) i radome, acoblada directament a la unitat de ràdio exterior (ODU). G ≈ 40 dBi i feix d’uns 1,5° (catàlegs de 0,6 m a 23 GHz: 39–41 dBi, 1,3–1,7°): els dos extrems s’alineen amb visió directa. El faldó absorbent elimina el vessament de l’alimentador i redueix molt els lòbuls laterals i posteriors (antena d’alt rendiment, F/B ≈ 64 dB; catàlegs: 62–66 dB) per poder reutilitzar freqüències amb altres enllaços del mateix emplaçament.',
     hw: 'Reflector de 0,6 m dins d’un faldó cilíndric tancat amb un radome pla; la unitat de ràdio (ODU) s’acobla al darrere i tot es fixa al pal.',
   },
   bilobular: {
@@ -537,7 +560,7 @@ function disposeChildren(group) {
 
 // ---------- Mallat del diagrama ----------
 const range = (a, b, step) => Array.from({ length: Math.round((b - a) / step) + 1 }, (_, i) => (a + i * step) * D2R);
-const DISH_ALPHAS = [...range(0, 6, 0.02), ...range(6.1, 20, 0.1), ...range(20.5, 180, 0.5)];
+const DISH_ALPHAS = [...range(0, 6, 0.02), ...range(6.1, 20, 0.1), ...range(20.5, 170, 0.5), ...range(170.1, 180, 0.1)]; // dens al lòbul posterior axial
 const every = (arr, k) => arr.filter((_, i) => i % k === 0 || i === arr.length - 1);
 // 'tp': (θ, φ) clàssiques; 'beam': (α, β) al voltant de l'eix +x, amb mostreig dens a prop del feix
 function gridFor(a, coarse) {
